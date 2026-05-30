@@ -1,0 +1,6 @@
+*.pyo
+*.pyc
+__pycache__/
+_build/
+*.ipk
+cacert.pem
