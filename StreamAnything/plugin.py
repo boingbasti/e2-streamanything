@@ -18,7 +18,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.0.0"
+PLUGIN_VERSION = "1.1.0"
 
 _pixmap_cache = {}
 
@@ -33,6 +33,7 @@ def _cached_pixmap(path):
 import streams as _streams
 import webif   as _webif
 import youtube as _youtube
+import feratel as _feratel
 from player import play_stream
 
 PLUGIN_DIR = os.path.dirname(__file__)
@@ -1511,6 +1512,10 @@ class StreamAnywhereScreen(Screen):
                     resolved = _youtube.resolve(url, best_quality=prefer_bq)
                     if resolved:
                         url = resolved
+                elif _feratel.is_feratel(url):
+                    resolved = _feratel.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -1546,6 +1551,10 @@ class StreamAnywhereScreen(Screen):
                 prefer_bq = _get_setting("prefer_best_quality", True)
                 if _youtube.is_youtube(url):
                     resolved = _youtube.resolve(url, best_quality=prefer_bq)
+                    if resolved:
+                        url = resolved
+                elif _feratel.is_feratel(url):
+                    resolved = _feratel.resolve(url)
                     if resolved:
                         url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
@@ -2232,6 +2241,10 @@ class StreamAnywhereGroupScreen(Screen):
                 prefer_bq = _get_setting("prefer_best_quality", True)
                 if _youtube.is_youtube(url):
                     resolved = _youtube.resolve(url, best_quality=prefer_bq)
+                    if resolved:
+                        url = resolved
+                elif _feratel.is_feratel(url):
+                    resolved = _feratel.resolve(url)
                     if resolved:
                         url = resolved
                 play_stream(self.session, url, title=name, is_live=True,

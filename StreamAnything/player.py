@@ -55,6 +55,14 @@ class SAStreamPlayer(MoviePlayer):
                     url = resolved
         except Exception:
             pass
+        try:
+            import feratel as _ft
+            if _ft.is_feratel(url):
+                resolved = _ft.resolve(url)
+                if resolved:
+                    url = resolved
+        except Exception:
+            pass
         ref = _build_ref(url, name, player, user_agent,
                          self._autoconfigure, self._prefer_best_quality,
                          hls_audio_fix=hls_fix)

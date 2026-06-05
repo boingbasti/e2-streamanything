@@ -18,6 +18,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - Import als einzelne Streams, als neuer Ordner oder in einen vorhandenen Ordner
   - Duplikat-Check per URL: bereits vorhandene Streams werden übersprungen
 - **YouTube Live** – YouTube-Livestreams werden automatisch aufgelöst (höchste verfügbare Qualität)
+- **Feratel-Webcams** – `feratel.com/webcam/...`-URLs werden automatisch aufgelöst; keine manuelle Stream-URL nötig
 - **Player-Auswahl** – pro Stream wählbar: Auto, exteplayer3, gstplayer oder Standard-Player
   - **Auto** (Standard): verwendet exteplayer3 wenn ServiceApp installiert ist, sonst den Enigma2-Standard-Player
   - **exteplayer3 / gstplayer**: erzwingt den jeweiligen Player unabhängig von ServiceApp
@@ -46,7 +47,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.0.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.1.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -141,6 +142,10 @@ Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
 YouTube-URLs (`youtube.com/watch?v=...`) werden automatisch erkannt und über die InnerTube-API aufgelöst. Es wird die höchste verfügbare HLS-Qualität gewählt.
 
 Nur Live-Streams werden unterstützt — normale YouTube-Videos nicht.
+
+## Feratel-Webcams
+
+Feratel-URLs (`feratel.com/webcam/...`) werden automatisch erkannt und über die Feratel-API aufgelöst. Die aktuelle MP4-Stream-URL wird vor dem Abspielen abgerufen — die URL im Plugin muss nicht manuell aktualisiert werden.
 
 ## Lizenz
 
