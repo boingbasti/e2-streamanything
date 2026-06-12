@@ -2,6 +2,7 @@
 # YouTube-Live-Stream-Aufloesung ueber die InnerTube-API.
 # Basiert auf dem Ansatz aus enigma2-plugin-extensions-youtube (GPL2, Taapat)
 # https://github.com/Taapat/enigma2-plugin-youtube
+import os
 import re
 import json
 
@@ -20,6 +21,17 @@ _VERSION = "21.08.266"
 _UA      = "com.google.android.youtube/%s (Linux; U; Android 11) gzip" % _VERSION
 
 
+def _dbg(msg):
+    if not os.path.exists("/tmp/sa_debug"):
+        return
+    try:
+        import time
+        with open("/tmp/streamanything.log", "a") as f:
+            f.write("[%.3f] [YouTube] %s\n" % (time.time(), msg))
+    except Exception:
+        pass
+
+
 def is_youtube(url):
     return bool(re.search(r'(?:youtube\.com/watch|youtu\.be/)', url))
 
@@ -29,6 +41,7 @@ def resolve(url, best_quality=True):
     if not m:
         return None
     vid = m.group(1)
+    _dbg("resolve start vid=%s best_quality=%s" % (vid, best_quality))
     data = json.dumps({
         "videoId": vid,
         "playbackContext": {"contentPlaybackContext": {"html5Preference": "HTML5_PREF_WANTS"}},
@@ -58,16 +71,19 @@ def resolve(url, best_quality=True):
         resp = _urlreq.urlopen(req, timeout=10)
         result = json.loads(resp.read())
         if result.get("videoDetails", {}).get("videoId") != vid:
+            _dbg("videoId mismatch in response")
             return None
         manifest_url = result.get("streamingData", {}).get("hlsManifestUrl")
         if not manifest_url:
+            _dbg("kein hlsManifestUrl in response")
             return None
+        _dbg("manifest_url=%s" % manifest_url)
         if not best_quality:
             return manifest_url
         best = _best_from_manifest(manifest_url)
         return best or manifest_url
     except Exception as e:
-        print("[YouTube] resolve fehler: %s" % e)
+        _dbg("resolve Fehler: %s" % e)
         return None
 
 
@@ -89,8 +105,10 @@ def _best_from_manifest(manifest_url):
                             best_bw  = bw
                             best_url = candidate
         if best_url:
-            print("[YouTube] beste Qualitaet: %d bps" % best_bw)
+            _dbg("beste Qualitaet: %d bps url=%s" % (best_bw, best_url))
+        else:
+            _dbg("keine Variante im Manifest gefunden")
         return best_url
     except Exception as e:
-        print("[YouTube] manifest fehler: %s" % e)
+        _dbg("manifest Fehler: %s" % e)
         return None

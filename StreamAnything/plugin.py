@@ -18,7 +18,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.1.0"
+PLUGIN_VERSION = "1.2.0"
 
 _pixmap_cache = {}
 
@@ -34,6 +34,8 @@ import streams as _streams
 import webif   as _webif
 import youtube as _youtube
 import feratel as _feratel
+import skylinewebcams as _skyline
+import earthtv as _earthtv
 from player import play_stream
 
 PLUGIN_DIR = os.path.dirname(__file__)
@@ -60,6 +62,21 @@ def _u(val):
     return val
 
 
+_SA_DEBUG_FLAG = "/tmp/sa_debug"
+_SA_DEBUG_LOG  = "/tmp/streamanything.log"
+
+
+def _dbg(msg):
+    if not os.path.exists(_SA_DEBUG_FLAG):
+        return
+    try:
+        import time
+        with open(_SA_DEBUG_LOG, "a") as f:
+            f.write("[%.3f] %s\n" % (time.time(), msg))
+    except Exception:
+        pass
+
+
 # ------------------------------------------------------------------
 # Einstellungen
 # ------------------------------------------------------------------
@@ -80,6 +97,7 @@ _SETTINGS = [
     ("serviceapp_autoconfigure", "ServiceApp auto-konfigurieren", "toggle"),
     ("webif_autostart",          "WebIF im Hintergrund",          "toggle"),
     ("webif_port",               "WebIF Port",                    "port"),
+    ("debug_log",                "Debug-Log",                     "toggle"),
 ]
 
 _PORT_OPTIONS = [8080, 8088, 8090, 8181, 8888, 9000]
@@ -88,6 +106,7 @@ _SETTINGS_DEFAULTS = {
     "prefer_best_quality":      True,
     "serviceapp_autoconfigure": True,
     "webif_autostart":          True,
+    "debug_log":                False,
 }
 
 
@@ -797,6 +816,16 @@ class StreamAnywhereSettingsScreen(Screen):
                     _streams.set_webif_port(new_port)
                     _webif.stop()
                     _webif.start(new_port)
+        if self._pending.get("debug_log", False):
+            try:
+                open(_SA_DEBUG_FLAG, "w").close()
+            except Exception:
+                pass
+        else:
+            try:
+                os.remove(_SA_DEBUG_FLAG)
+            except Exception:
+                pass
         self.close()
 
     def _on_red(self):
@@ -1516,6 +1545,18 @@ class StreamAnywhereScreen(Screen):
                     resolved = _feratel.resolve(url)
                     if resolved:
                         url = resolved
+                elif _skyline.is_skylinewebcams(url):
+                    resolved = _skyline.resolve(url)
+                    if resolved:
+                        url = resolved
+                        if _youtube.is_youtube(url):
+                            yt = _youtube.resolve(url, best_quality=prefer_bq)
+                            if yt:
+                                url = yt
+                elif _earthtv.is_earthtv(url):
+                    resolved = _earthtv.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -1555,6 +1596,18 @@ class StreamAnywhereScreen(Screen):
                         url = resolved
                 elif _feratel.is_feratel(url):
                     resolved = _feratel.resolve(url)
+                    if resolved:
+                        url = resolved
+                elif _skyline.is_skylinewebcams(url):
+                    resolved = _skyline.resolve(url)
+                    if resolved:
+                        url = resolved
+                        if _youtube.is_youtube(url):
+                            yt = _youtube.resolve(url, best_quality=prefer_bq)
+                            if yt:
+                                url = yt
+                elif _earthtv.is_earthtv(url):
+                    resolved = _earthtv.resolve(url)
                     if resolved:
                         url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
@@ -2247,6 +2300,18 @@ class StreamAnywhereGroupScreen(Screen):
                     resolved = _feratel.resolve(url)
                     if resolved:
                         url = resolved
+                elif _skyline.is_skylinewebcams(url):
+                    resolved = _skyline.resolve(url)
+                    if resolved:
+                        url = resolved
+                        if _youtube.is_youtube(url):
+                            yt = _youtube.resolve(url, best_quality=prefer_bq)
+                            if yt:
+                                url = yt
+                elif _earthtv.is_earthtv(url):
+                    resolved = _earthtv.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -2280,6 +2345,22 @@ class StreamAnywhereGroupScreen(Screen):
                 resolved = _youtube.resolve(url, best_quality=prefer_bq)
                 if resolved:
                     url = resolved
+            elif _feratel.is_feratel(url):
+                resolved = _feratel.resolve(url)
+                if resolved:
+                    url = resolved
+            elif _skyline.is_skylinewebcams(url):
+                resolved = _skyline.resolve(url)
+                if resolved:
+                    url = resolved
+                    if _youtube.is_youtube(url):
+                        yt = _youtube.resolve(url, best_quality=prefer_bq)
+                        if yt:
+                            url = yt
+            elif _earthtv.is_earthtv(url):
+                resolved = _earthtv.resolve(url)
+                if resolved:
+                    url = resolved
             play_stream(self.session, url, title=name, is_live=True,
                         player=player, user_agent=user_agent,
                         autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -2303,6 +2384,11 @@ def autostart(reason, **kwargs):
     global _autostart_timer
     if reason != 0:
         return
+    if _get_setting("debug_log", False):
+        try:
+            open(_SA_DEBUG_FLAG, "w").close()
+        except Exception:
+            pass
     if not _get_setting("webif_autostart", False):
         return
     try:

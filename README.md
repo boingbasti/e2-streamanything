@@ -19,6 +19,8 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - Duplikat-Check per URL: bereits vorhandene Streams werden übersprungen
 - **YouTube Live** – YouTube-Livestreams werden automatisch aufgelöst (höchste verfügbare Qualität)
 - **Feratel-Webcams** – `feratel.com/webcam/...`-URLs werden automatisch aufgelöst; keine manuelle Stream-URL nötig
+- **Skylinewebcams** – `skylinewebcams.com/...`-URLs werden automatisch aufgelöst
+- **EarthTV** – `earthtv.com/.../webcam/...`-URLs werden automatisch aufgelöst
 - **Player-Auswahl** – pro Stream wählbar: Auto, exteplayer3, gstplayer oder Standard-Player
   - **Auto** (Standard): verwendet exteplayer3 wenn ServiceApp installiert ist, sonst den Enigma2-Standard-Player
   - **exteplayer3 / gstplayer**: erzwingt den jeweiligen Player unabhängig von ServiceApp
@@ -47,7 +49,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.1.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.2.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -122,6 +124,7 @@ Die **Menü-Taste** auf einem Ordner öffnet eine Bestätigungsabfrage zum Lösc
 | ServiceApp auto-konfigurieren | Ein | Setzt beim Abspielen automatisch optimale ServiceApp-Einstellungen für Live-Streams: Downmix, Autoselect Stream sowie je nach exteplayer3-Version HLS-Explorer und AAC-Software-Dekodierung |
 | WebIF im Hintergrund | Ein | WebIF beim Starten des Plugins automatisch im Hintergrund starten |
 | WebIF Port | 8090 | Port des WebIF (wählbar: 8080, 8088, 8090, 8181, 8888, 9000) |
+| Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV) |
 
 #### Streamwechsel während der Wiedergabe
 
@@ -137,6 +140,8 @@ Beim Anlegen oder Bearbeiten eines Streams innerhalb eines Ordners steht der But
 
 Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
 
+Über dem Eintrags-Liste stehen die Buttons **Alle einklappen** und **Alle ausklappen**, die alle Ordner gleichzeitig ein- oder ausklappen — sichtbar sobald mindestens ein Ordner vorhanden ist.
+
 ## YouTube-Livestreams
 
 YouTube-URLs (`youtube.com/watch?v=...`) werden automatisch erkannt und über die InnerTube-API aufgelöst. Es wird die höchste verfügbare HLS-Qualität gewählt.
@@ -146,6 +151,14 @@ Nur Live-Streams werden unterstützt — normale YouTube-Videos nicht.
 ## Feratel-Webcams
 
 Feratel-URLs (`feratel.com/webcam/...`) werden automatisch erkannt und über die Feratel-API aufgelöst. Die aktuelle MP4-Stream-URL wird vor dem Abspielen abgerufen — die URL im Plugin muss nicht manuell aktualisiert werden.
+
+## Skylinewebcams
+
+Skylinewebcams-URLs (`skylinewebcams.com/...`) werden automatisch erkannt. Der Stream-Token wird direkt von der Seite abgerufen und die HLS-URL zusammengebaut — die URL im Plugin muss nicht manuell aktualisiert werden.
+
+## EarthTV
+
+EarthTV-URLs (`earthtv.com/.../webcam/...`) werden automatisch erkannt und über die EarthTV-API aufgelöst. Es genügt die URL der Webcam-Seite — `/live-stream` muss nicht manuell angehängt werden.
 
 ## Lizenz
 

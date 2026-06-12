@@ -3,6 +3,17 @@ from __future__ import unicode_literals
 
 import os
 
+
+def _dbg(msg):
+    if not os.path.exists("/tmp/sa_debug"):
+        return
+    try:
+        import time
+        with open("/tmp/streamanything.log", "a") as f:
+            f.write("[%.3f] [player] %s\n" % (time.time(), msg))
+    except Exception:
+        pass
+
 from enigma import eServiceReference
 
 try:
@@ -63,6 +74,14 @@ class SAStreamPlayer(MoviePlayer):
                     url = resolved
         except Exception:
             pass
+        try:
+            import skylinewebcams as _sky
+            if _sky.is_skylinewebcams(url):
+                resolved = _sky.resolve(url)
+                if resolved:
+                    url = resolved
+        except Exception:
+            pass
         ref = _build_ref(url, name, player, user_agent,
                          self._autoconfigure, self._prefer_best_quality,
                          hls_audio_fix=hls_fix)
@@ -89,7 +108,9 @@ def _has_new_exteplayer3():
 
 
 def _resolve_hls_best_variant(url, user_agent=""):
+    _dbg("_resolve_hls_best_variant url=%s" % url)
     if not url.lower().split("?")[0].endswith(".m3u8"):
+        _dbg("not m3u8, returning as-is")
         return url
     try:
         try:
@@ -102,6 +123,8 @@ def _resolve_hls_best_variant(url, user_agent=""):
         resp = urlopen(req, timeout=8)
         effective_url = resp.geturl()
         content = resp.read().decode("utf-8", "replace")
+        _dbg("m3u8 fetched effective_url=%s len=%d has_stream_inf=%s" % (
+            effective_url, len(content), "#EXT-X-STREAM-INF" in content))
         if "#EXT-X-STREAM-INF" not in content:
             return url
         best_bw, best_url = -1, None
@@ -122,14 +145,17 @@ def _resolve_hls_best_variant(url, user_agent=""):
                 except ImportError:
                     from urllib.parse import urljoin
                 best_url = urljoin(effective_url, best_url)
+            _dbg("best variant selected bw=%d url=%s" % (best_bw, best_url))
             return best_url
-    except Exception:
-        pass
+    except Exception as e:
+        _dbg("_resolve_hls_best_variant exception: %s" % e)
     return url
 
 
 def _build_local_playlist(master_url, user_agent=""):
+    _dbg("_build_local_playlist url=%s" % master_url)
     if not master_url.lower().split("?")[0].endswith(".m3u8"):
+        _dbg("not m3u8, skip")
         return None
     try:
         try:
@@ -288,6 +314,7 @@ def _build_ref(url, title, player, user_agent,
             player_id = 5002
         else:
             player_id = 4097
+    _dbg("_build_ref player_id=%d url=%s" % (player_id, url_str))
     ref = eServiceReference(player_id, 0, url_bytes)
     ref.setName(title_bytes)
     return ref

@@ -822,6 +822,14 @@ function renderItemList(){
   if(state.items.length === 0){
     h += '<p class="empty">Noch keine Einträge.</p>';
   } else {
+    var hasFolders = state.items.some(function(it){ return it.type==='folder'; });
+    if(hasFolders){
+      h += '<div style="text-align:right;margin-bottom:8px">';
+      h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
+      h += '&nbsp;&nbsp;';
+      h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
+      h += '</div>';
+    }
     h += '<ul class="item-list">';
     for(var i=0;i<state.items.length;i++){
       var item = state.items[i];
@@ -853,6 +861,16 @@ function renderStreamItem(s, i){
 
 function toggleFolder(id){
   state.collapsedFolders[id] = !state.collapsedFolders[id];
+  render();
+}
+function collapseAll(){
+  for(var i=0;i<state.items.length;i++){
+    if(state.items[i].type==='folder') state.collapsedFolders[state.items[i].id]=true;
+  }
+  render();
+}
+function expandAll(){
+  state.collapsedFolders={};
   render();
 }
 function renderFolderItem(g, gi){
