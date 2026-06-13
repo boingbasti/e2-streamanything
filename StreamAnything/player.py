@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os
 
 
@@ -201,9 +199,18 @@ def _build_local_playlist(master_url, user_agent=""):
         if not best_url:
             return None
 
+        audio_group_m = re.search(r'AUDIO="([^"]+)"', best_inf or "")
+        audio_group = audio_group_m.group(1) if audio_group_m else None
+
         out = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS", ""]
         for line in lines:
             if line.startswith("#EXT-X-MEDIA"):
+                if "TYPE=AUDIO" not in line:
+                    continue
+                if audio_group and ('GROUP-ID="%s"' % audio_group) not in line:
+                    continue
+                if "DEFAULT=YES" not in line:
+                    continue
                 line = re.sub(
                     r'URI="([^"]+)"',
                     lambda m: 'URI="' + _urljoin(effective_url, m.group(1)) + '"',

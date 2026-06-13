@@ -18,7 +18,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.2.0"
+PLUGIN_VERSION = "1.3.0"
 
 _pixmap_cache = {}
 
@@ -36,6 +36,7 @@ import youtube as _youtube
 import feratel as _feratel
 import skylinewebcams as _skyline
 import earthtv as _earthtv
+import earthcam as _earthcam
 from player import play_stream
 
 PLUGIN_DIR = os.path.dirname(__file__)
@@ -1557,6 +1558,10 @@ class StreamAnywhereScreen(Screen):
                     resolved = _earthtv.resolve(url)
                     if resolved:
                         url = resolved
+                elif _earthcam.is_earthcam(url):
+                    resolved = _earthcam.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -1608,6 +1613,10 @@ class StreamAnywhereScreen(Screen):
                                 url = yt
                 elif _earthtv.is_earthtv(url):
                     resolved = _earthtv.resolve(url)
+                    if resolved:
+                        url = resolved
+                elif _earthcam.is_earthcam(url):
+                    resolved = _earthcam.resolve(url)
                     if resolved:
                         url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
@@ -2312,6 +2321,10 @@ class StreamAnywhereGroupScreen(Screen):
                     resolved = _earthtv.resolve(url)
                     if resolved:
                         url = resolved
+                elif _earthcam.is_earthcam(url):
+                    resolved = _earthcam.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -2359,6 +2372,10 @@ class StreamAnywhereGroupScreen(Screen):
                             url = yt
             elif _earthtv.is_earthtv(url):
                 resolved = _earthtv.resolve(url)
+                if resolved:
+                    url = resolved
+            elif _earthcam.is_earthcam(url):
+                resolved = _earthcam.resolve(url)
                 if resolved:
                     url = resolved
             play_stream(self.session, url, title=name, is_live=True,

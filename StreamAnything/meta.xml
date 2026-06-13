@@ -2,7 +2,7 @@
 <meta>
     <name>StreamAnything</name>
     <description>Eigene Streams konfigurieren und abspielen – vollständig per WebIF verwaltbar.</description>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <author>saufsoldat</author>
     <homepage>https://github.com/boingbasti/e2-streamanything</homepage>
     <license>GPL2</license>
