@@ -6,7 +6,7 @@ import tarfile
 import io
 
 PLUGIN_NAME  = "enigma2-plugin-extensions-streamanything"
-VERSION      = "1.3.0"
+VERSION      = "1.3.1"
 ARCHITECTURE = "all"
 MAINTAINER   = "saufsoldat"
 HOMEPAGE     = "https://github.com/boingbasti/e2-streamanything"

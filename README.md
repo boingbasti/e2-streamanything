@@ -50,7 +50,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.3.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.3.1_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.

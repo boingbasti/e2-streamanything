@@ -24,9 +24,10 @@ try:
 except ImportError:
     from socketserver import ThreadingMixIn
 
-_UA      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-_REF     = "https://www.earthcam.com/"
+_UA        = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+_REF       = "https://www.earthcam.com/"
 _STREAM_RE = re.compile(r'"stream"\s*:\s*"(https?:\\/\\/[^"]+\.m3u8[^"]*)"')
+_CAM_RE    = re.compile(r'[?&]cam=([^&"]+)')
 
 
 def _dbg(msg):
@@ -104,7 +105,17 @@ def resolve(url):
         resp = _urlreq.urlopen(req, timeout=10)
         html = resp.read().decode("utf-8", "replace")
         _dbg("page fetched len=%d" % len(html))
-        m = _STREAM_RE.search(html)
+        cam_m = _CAM_RE.search(url)
+        cam   = cam_m.group(1) if cam_m else None
+        _dbg("cam=%s" % cam)
+        json_base_idx = html.find('var json_base')
+        search_start  = json_base_idx if json_base_idx >= 0 else 0
+        if cam:
+            idx = html.find('"' + cam + '"', search_start)
+            search_html = html[idx:] if idx >= 0 else html[search_start:]
+        else:
+            search_html = html[search_start:]
+        m = _STREAM_RE.search(search_html)
         if not m:
             _dbg("kein stream-Feld gefunden")
             return None

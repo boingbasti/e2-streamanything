@@ -18,7 +18,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.3.0"
+PLUGIN_VERSION = "1.3.1"
 
 _pixmap_cache = {}
 
