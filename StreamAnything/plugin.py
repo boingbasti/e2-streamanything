@@ -19,7 +19,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.4.0"
+PLUGIN_VERSION = "1.5.0"
 
 _pixmap_cache = {}
 
@@ -38,6 +38,7 @@ import feratel as _feratel
 import skylinewebcams as _skyline
 import earthtv as _earthtv
 import earthcam as _earthcam
+import magentamusik as _magentamusik
 from player import play_stream
 
 PLUGIN_DIR = os.path.dirname(__file__)
@@ -1596,6 +1597,10 @@ class StreamAnywhereScreen(Screen):
                     resolved = _earthcam.resolve(url)
                     if resolved:
                         url = resolved
+                elif _magentamusik.is_magentamusik(url):
+                    resolved = _magentamusik.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -1651,6 +1656,10 @@ class StreamAnywhereScreen(Screen):
                         url = resolved
                 elif _earthcam.is_earthcam(url):
                     resolved = _earthcam.resolve(url)
+                    if resolved:
+                        url = resolved
+                elif _magentamusik.is_magentamusik(url):
+                    resolved = _magentamusik.resolve(url)
                     if resolved:
                         url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
@@ -2359,6 +2368,10 @@ class StreamAnywhereGroupScreen(Screen):
                     resolved = _earthcam.resolve(url)
                     if resolved:
                         url = resolved
+                elif _magentamusik.is_magentamusik(url):
+                    resolved = _magentamusik.resolve(url)
+                    if resolved:
+                        url = resolved
                 play_stream(self.session, url, title=name, is_live=True,
                             player=player, user_agent=user_agent,
                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
@@ -2410,6 +2423,10 @@ class StreamAnywhereGroupScreen(Screen):
                     url = resolved
             elif _earthcam.is_earthcam(url):
                 resolved = _earthcam.resolve(url)
+                if resolved:
+                    url = resolved
+            elif _magentamusik.is_magentamusik(url):
+                resolved = _magentamusik.resolve(url)
                 if resolved:
                     url = resolved
             play_stream(self.session, url, title=name, is_live=True,

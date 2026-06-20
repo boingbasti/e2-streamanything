@@ -22,6 +22,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **Skylinewebcams** – `skylinewebcams.com/...`-URLs werden automatisch aufgelöst
 - **EarthTV** – `earthtv.com/.../webcam/...`-URLs werden automatisch aufgelöst
 - **EarthCam** – `earthcam.com`-URLs werden automatisch aufgelöst
+- **MagentaMusik** – `magentamusik.de`-URLs werden automatisch aufgelöst, sowohl Live-Streams als auch VOD-Aufzeichnungen von Konzerten/Festivals
 - **Player-Auswahl** – pro Stream wählbar: Auto, exteplayer3, gstplayer oder Standard-Player
   - **Auto** (Standard): verwendet exteplayer3 wenn ServiceApp installiert ist, sonst den Enigma2-Standard-Player
   - **exteplayer3 / gstplayer**: erzwingt den jeweiligen Player unabhängig von ServiceApp
@@ -51,7 +52,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.4.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.5.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -126,7 +127,7 @@ Die **Menü-Taste** auf einem Ordner öffnet eine Bestätigungsabfrage zum Lösc
 | ServiceApp auto-konfigurieren | Ein | Setzt beim Abspielen automatisch optimale ServiceApp-Einstellungen für Live-Streams: Downmix, Autoselect Stream sowie je nach exteplayer3-Version HLS-Explorer und AAC-Software-Dekodierung |
 | WebIF im Hintergrund | Ein | WebIF beim Starten des Plugins automatisch im Hintergrund starten |
 | WebIF Port | 8090 | Port des WebIF (wählbar: 8080, 8088, 8090, 8181, 8888, 9000) |
-| Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV, EarthCam) |
+| Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV, EarthCam, MagentaMusik) |
 | Sprache | Auto | Oberflächensprache von Plugin und WebIF: Auto (Box-Systemsprache), Deutsch oder Englisch |
 
 #### Streamwechsel während der Wiedergabe
@@ -166,6 +167,10 @@ EarthTV-URLs (`earthtv.com/.../webcam/...`) werden automatisch erkannt und über
 ## EarthCam
 
 EarthCam-URLs (`earthcam.com/...`) werden automatisch erkannt. Die Stream-URL wird direkt von der Seite abgerufen — die URL im Plugin muss nicht manuell aktualisiert werden.
+
+## MagentaMusik
+
+MagentaMusik-URLs (`magentamusik.de/...`) werden automatisch erkannt und über die Telekom-eigene API aufgelöst — sowohl Live-Streams während eines Konzerts/Festivals als auch VOD-Aufzeichnungen danach. Es genügt die normale Event-URL der Seite.
 
 ## Lizenz
 

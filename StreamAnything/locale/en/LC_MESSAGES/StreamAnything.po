@@ -366,3 +366,22 @@ msgstr "Please enter a folder name."
 
 msgid "Bitte einen Ordner auswählen."
 msgstr "Please select a folder."
+
+# Formular-Platzhalter (bereits englisch, hier nur zur Vollstaendigkeit dokumentiert)
+msgid "Name"
+msgstr "Name"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Stream-URL"
+msgstr "Stream-URL"
+
+msgid "User-Agent (optional)"
+msgstr "User-Agent (optional)"
+
+msgid "Logo-URL (optional)"
+msgstr "Logo-URL (optional)"
+
+msgid "PNG"
+msgstr "PNG"

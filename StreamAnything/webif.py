@@ -932,7 +932,13 @@ function renderFolderItem(g, gi){
     }
     h += '</ul>';
   }
-  h += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #222">';
+  h += '</div>';
+  h += '</li>';
+  // Add-Formular bewusst als eigenes, NICHT-draggable <li> ausserhalb des Ordner-<li>:
+  // liegt es im selben draggable-Element wie der Ordner, kapert ein Long-Press auf den
+  // Eingabefeldern (z.B. URL) auf Mobilgeraeten den nativen HTML5-Drag, das Android-
+  // Einfuegen-Menue erscheint dann nicht mehr (haengt teils sogar in der Markierung fest).
+  h += '<li class="item folder-addform" style="flex-direction:column;align-items:stretch;cursor:default'+(collapsed?';display:none':'')+'" id="fsadd-'+g.id+'">';
   h += '<div class="form-row"><input id="fs_name_'+g.id+'" placeholder="Name" style="flex:.4"><input id="fs_url_'+g.id+'" placeholder="URL"></div>';
   h += '<div class="form-row">' + playerSelectHtml('fs_player_'+g.id,'') + '</div>';
   h += '<div class="form-row"><input id="fs_ua_'+g.id+'" placeholder="User-Agent (optional)" list="uaList"></div>';
@@ -947,7 +953,7 @@ function renderFolderItem(g, gi){
   h += '<p class="hint">PNG</p>';
   h += '</div></div>';
   h += '<button class="btn btn-primary btn-sm" onclick="addFolderStream(\''+g.id+'\')">Stream hinzufügen</button>';
-  h += '</div></div></li>';
+  h += '</li>';
   return h;
 }
 
@@ -1890,6 +1896,17 @@ function closeModal(id){
     _html = _html.replace("__FI_NONE__", _("Keine ausgew\xe4hlt"))
     _html = _html.replace('placeholder="Ordnername"',
                           'placeholder="' + _("Ordnername") + '"')
+    _html = _html.replace('placeholder="Name"',
+                          'placeholder="' + _("Name") + '"')
+    _html = _html.replace('placeholder="URL"',
+                          'placeholder="' + _("URL") + '"')
+    _html = _html.replace('placeholder="Stream-URL"',
+                          'placeholder="' + _("Stream-URL") + '"')
+    _html = _html.replace('placeholder="User-Agent (optional)"',
+                          'placeholder="' + _("User-Agent (optional)") + '"')
+    _html = _html.replace('placeholder="Logo-URL (optional)"',
+                          'placeholder="' + _("Logo-URL (optional)") + '"')
+    _html = _html.replace('>PNG<', '>' + _("PNG") + '<')
     _html = _html.replace('placeholder="Ordner-Name"',
                           'placeholder="' + _("Ordner-Name") + '"')
     _html = _html.replace(" bereits vorhanden, \xfcbersprungen.",
