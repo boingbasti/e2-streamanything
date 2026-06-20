@@ -32,6 +32,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
   - **Einträge hinzufügen** – Backup wird zu den vorhandenen Einträgen hinzugefügt, Duplikate (gleiche ID) werden übersprungen
 - **WebIF** – vollständige Verwaltung über den Browser, erreichbar unter `http://<Box-IP>:8090`
+- **Mehrsprachig** – Oberfläche (Plugin und WebIF) auf Deutsch oder Englisch; automatisch nach Box-Systemsprache oder manuell in den Einstellungen wählbar
 
 ## Voraussetzungen
 
@@ -50,7 +51,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.3.1_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.4.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -126,16 +127,17 @@ Die **Menü-Taste** auf einem Ordner öffnet eine Bestätigungsabfrage zum Lösc
 | WebIF im Hintergrund | Ein | WebIF beim Starten des Plugins automatisch im Hintergrund starten |
 | WebIF Port | 8090 | Port des WebIF (wählbar: 8080, 8088, 8090, 8181, 8888, 9000) |
 | Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV, EarthCam) |
+| Sprache | Auto | Oberflächensprache von Plugin und WebIF: Auto (Box-Systemsprache), Deutsch oder Englisch |
 
 #### Streamwechsel während der Wiedergabe
 
-Während ein Stream läuft, wechseln **CH+** und **CH-** zum nächsten bzw. vorherigen Stream in der aktuellen Liste. Ordner werden dabei übersprungen. Der neue Stream startet mit seinen eigenen Einstellungen (Player, User-Agent, HLS-Fix).
+Während ein Stream läuft, wechseln **CH+** und **CH-** zum nächsten bzw. vorherigen Stream in der aktuellen Liste. Ordner werden dabei übersprungen. Der neue Stream startet mit seinen eigenen Einstellungen (Player, User-Agent, HLS-Fix). Ist der Zielstream nicht erreichbar, bleibt der Player geöffnet und zeigt einen Hinweis – mit CH+/- kann direkt weiter zum nächsten Stream gewechselt werden.
 
 ### WebIF
 
 Im Browser öffnen: `http://<Box-IP>:8090`
 
-Über das WebIF können Streams und Ordner angelegt, bearbeitet, sortiert und gelöscht werden. Logos lassen sich direkt hochladen oder per URL laden. M3U-Playlists können über den Button **Playlist** importiert werden.
+Über das WebIF können Streams und Ordner angelegt, bearbeitet, sortiert und gelöscht werden. Einträge lassen sich per Drag & Drop verschieben – auch vor oder nach einen Ordner, ohne dabei hineinzurutschen, sowie aus einem Ordner heraus an eine beliebige Position in der Hauptliste. Logos lassen sich direkt hochladen oder per URL laden. M3U-Playlists können über den Button **Playlist** importiert werden.
 
 Beim Anlegen oder Bearbeiten eines Streams innerhalb eines Ordners steht der Button **Von Ordner** zur Verfügung, um das Logo des Ordners direkt zu übernehmen.
 

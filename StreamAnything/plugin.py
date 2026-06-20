@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+from sa_locale import _
 
 from Plugins.Plugin import PluginDescriptor
 from Screens.Screen import Screen
@@ -18,7 +19,7 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.3.1"
+PLUGIN_VERSION = "1.4.0"
 
 _pixmap_cache = {}
 
@@ -92,22 +93,28 @@ def _set_setting(key, value):
     _streams.save_config(cfg)
 
 
-_SETTINGS = [
-    ("wrap_lr",                  "Links/Rechts zum Bl\xc3\xa4ttern",    "toggle"),
-    ("prefer_best_quality",      "H\xc3\xb6chste Qualit\xc3\xa4t bevorzugen", "toggle"),
-    ("serviceapp_autoconfigure", "ServiceApp auto-konfigurieren", "toggle"),
-    ("webif_autostart",          "WebIF im Hintergrund",          "toggle"),
-    ("webif_port",               "WebIF Port",                    "port"),
-    ("debug_log",                "Debug-Log",                     "toggle"),
-]
+def _get_settings():
+    return [
+        ("wrap_lr",                  _("Links/Rechts zum Blättern"),       "toggle"),
+        ("prefer_best_quality",      _("Höchste Qualität bevorzugen"),     "toggle"),
+        ("serviceapp_autoconfigure", _("ServiceApp auto-konfigurieren"),   "toggle"),
+        ("webif_autostart",          _("WebIF im Hintergrund"),            "toggle"),
+        ("webif_port",               _("WebIF Port"),                      "port"),
+        ("debug_log",                _("Debug-Log"),                       "toggle"),
+        ("language",                 _("Sprache"),                         "lang"),
+    ]
+
 
 _PORT_OPTIONS = [8080, 8088, 8090, 8181, 8888, 9000]
+_LANG_CYCLE   = ["auto", "de", "en"]
+_LANG_LABELS  = {"auto": "Auto", "de": "Deutsch", "en": "English"}
 _SETTINGS_DEFAULTS = {
     "wrap_lr":                  True,
     "prefer_best_quality":      True,
     "serviceapp_autoconfigure": True,
     "webif_autostart":          True,
     "debug_log":                False,
+    "language":                 "auto",
 }
 
 
@@ -351,7 +358,7 @@ def _build_skin():
 
 
 def _build_settings_skin():
-    n = len(_SETTINGS)
+    n = len(_get_settings())
     if IS_FHD:
         sx, sy          = 510, 200
         sw              = 900
@@ -444,13 +451,14 @@ def _build_settings_skin():
 # ------------------------------------------------------------------
 # Stream-Kontextmen\xc3\xbc (MENU-Taste): Player und User-Agent \xc3\xa4ndern
 # ------------------------------------------------------------------
-_UA_CHOICES = [
-    ("(keiner)",         ""),
-    ("Android / Chrome", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/91"),
-    ("Windows / Chrome", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120"),
-    ("iPhone / Safari",  "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15"),
-    ("VLC",              "VLC/3.0.18 LibVLC/3.0.18"),
-]
+def _get_ua_choices():
+    return [
+        (_("(keiner)"),      ""),
+        ("Android / Chrome", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/91"),
+        ("Windows / Chrome", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120"),
+        ("iPhone / Safari",  "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15"),
+        ("VLC",              "VLC/3.0.18 LibVLC/3.0.18"),
+    ]
 
 
 def _sa_confirm(session, text, callback):
@@ -459,7 +467,7 @@ def _sa_confirm(session, text, callback):
     session.openWithCallback(
         _map, _SAChoiceScreen,
         title=text if isinstance(text, bytes) else _b(_u(text)),
-        list=[(_b("Ja"), True), (_b("Nein"), False)],
+        list=[(_b(_("Ja")), True), (_b(_("Nein")), False)],
     )
 
 
@@ -548,11 +556,11 @@ class _SAChoiceScreen(Screen):
         self._on_save_fn     = on_save_fn
         self._has_changes_fn = has_changes_fn
         self["ct"]       = Label(title if isinstance(title, bytes) else _b(_u(title)))
-        self["ch_ok"]    = Label(_b("OK = Ausw\xc3\xa4hlen"))
+        self["ch_ok"]    = Label(_b(_("OK = Auswählen")))
         self["ch_pip_g"] = Label(_b(""))
-        self["ch_green"] = Label(_b("Speichern"))
+        self["ch_green"] = Label(_b(_("Speichern")))
         self["ch_pip_r"] = Label(_b(""))
-        self["ch_red"]   = Label(_b("Abbrechen"))
+        self["ch_red"]   = Label(_b(_("Abbrechen")))
         if not on_save_fn:
             self["ch_pip_g"].hide()
             self["ch_green"].hide()
@@ -628,7 +636,7 @@ class _SAChoiceScreen(Screen):
         def on_confirm(result):
             if result:
                 self.close(None)
-        _sa_confirm(self.session, _b("Ohne Speichern beenden?"), on_confirm)
+        _sa_confirm(self.session, _b(_("Ohne Speichern beenden?")), on_confirm)
 
 
 def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _original=None):
@@ -652,23 +660,23 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
         refresh_cb()
 
     _PLAYER_LABELS = {
-        "":            "Auto",
+        "":            _("Auto"),
         "exteplayer3": "exteplayer3",
         "gstplayer":   "GStreamer",
-        "default":     "Standard",
+        "default":     _("Standard"),
     }
     cur_player  = item.get("player", "")
     cur_ua      = _u(item.get("user_agent", ""))
     cur_hls_fix = item.get("hls_audio_fix", False)
-    cur_ua_label = next((label for label, val in _UA_CHOICES if val == cur_ua), None)
+    cur_ua_label = next((label for label, val in _get_ua_choices() if val == cur_ua), None)
     if cur_ua_label is None:
-        cur_ua_label = (cur_ua[:20] + "...") if len(cur_ua) > 20 else (cur_ua or "(keiner)")
+        cur_ua_label = (cur_ua[:20] + "...") if len(cur_ua) > 20 else (cur_ua or _("(keiner)"))
 
     choices = [
-        (_b("Player:     " + _PLAYER_LABELS.get(cur_player, "Auto")),              "player"),
-        (_b("User-Agent: " + cur_ua_label),                                         "ua"),
-        (_b("Lok. Playlist Server: " + ("EIN" if cur_hls_fix else "AUS")),          "hls_fix"),
-        (_b("L\xc3\xb6schen"),                                                      "delete"),
+        (_b(_("Player:     ") + _PLAYER_LABELS.get(cur_player, _("Auto"))),              "player"),
+        (_b(_("User-Agent: ") + cur_ua_label),                                            "ua"),
+        (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))),      "hls_fix"),
+        (_b(_("Löschen")),                                                                "delete"),
     ]
 
     def on_ua(choice):
@@ -694,22 +702,22 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
             return
         if choice[1] == "player":
             pchoices = [
-                (_b("Auto"),        ""),
-                (_b("exteplayer3"), "exteplayer3"),
-                (_b("GStreamer"),   "gstplayer"),
-                (_b("Standard"),   "default"),
+                (_b(_("Auto")),      ""),
+                (_b("exteplayer3"),  "exteplayer3"),
+                (_b("GStreamer"),    "gstplayer"),
+                (_b(_("Standard")), "default"),
             ]
             session.openWithCallback(on_player, _SAChoiceScreen,
-                                     title=_b("Player w\xc3\xa4hlen"), list=pchoices)
+                                     title=_b(_("Player wählen")), list=pchoices)
         elif choice[1] == "ua":
-            ua_list = [(_b(label), val) for label, val in _UA_CHOICES]
+            ua_list = [(_b(label), val) for label, val in _get_ua_choices()]
             session.openWithCallback(on_ua, _SAChoiceScreen,
-                                     title=_b("User-Agent w\xc3\xa4hlen"), list=ua_list)
+                                     title=_b(_("User-Agent wählen")), list=ua_list)
         elif choice[1] == "hls_fix":
             item["hls_audio_fix"] = not item.get("hls_audio_fix", False)
             _reopen()
         elif choice[1] == "delete" and delete_fn:
-            _sa_confirm(session, _b("Stream l\xc3\xb6schen?"), on_delete_confirm)
+            _sa_confirm(session, _b(_("Stream löschen?")), on_delete_confirm)
 
     session.openWithCallback(on_choice, _SAChoiceScreen,
                              title=_b(_u(item.get("name", "Stream"))),
@@ -729,46 +737,59 @@ class StreamAnywhereSettingsScreen(Screen):
         Screen.__init__(self, session)
         self._sel = 0
 
-        self["s_title"] = Label(_b("Einstellungen"))
-        for i, (key, label, kind) in enumerate(_SETTINGS):
+        self["s_title"] = Label(_b(_("Einstellungen")))
+        for i, (key, label, kind) in enumerate(_get_settings()):
             self["s_sel_%d"   % i] = Label(_b(""))
             self["s_label_%d" % i] = Label(_b(label))
             self["s_value_%d" % i] = Label(_b(""))
 
-        self["hint_ok"]    = Label(_b("OK = \xc3\x84ndern"))
-        self["hint_green"] = Label(_b("Speichern"))
-        self["hint_red"]   = Label(_b("Abbrechen"))
+        self["hint_ok"]    = Label(_b(_("OK = Ändern")))
+        self["hint_green"] = Label(_b(_("Speichern")))
+        self["hint_red"]   = Label(_b(_("Abbrechen")))
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions"],
             {
-                "ok":     self._on_ok,
-                "cancel": self._on_red,
-                "up":     self._move_up,
-                "down":   self._move_down,
-                "green":  self._on_green,
-                "red":    self._on_red,
+                "ok":           self._on_ok,
+                "cancel":       self._on_red,
+                "up":           self._move_up,
+                "down":         self._move_down,
+                "upRepeated":   self._move_up,
+                "downRepeated": self._move_down,
+                "green":        self._on_green,
+                "red":          self._on_red,
             },
             -1,
         )
 
         self._pending = {}
-        for key, label, kind in _SETTINGS:
+        for key, label, kind in _get_settings():
             if kind == "toggle":
                 self._pending[key] = _get_setting(key, _SETTINGS_DEFAULTS.get(key, False))
             elif kind == "port":
                 self._pending[key] = _streams.get_webif_port()
+            elif kind == "lang":
+                self._pending[key] = _get_setting(key, "auto")
         self._original = dict(self._pending)
 
         self._refresh()
 
     def _refresh(self):
-        for i, (key, label, kind) in enumerate(_SETTINGS):
+        settings = _get_settings()
+        self["s_title"].setText(_b(_("Einstellungen")))
+        self["hint_ok"].setText(_b(_("OK = Ändern")))
+        self["hint_green"].setText(_b(_("Speichern")))
+        self["hint_red"].setText(_b(_("Abbrechen")))
+        for i, (key, label, kind) in enumerate(settings):
+            self["s_label_%d" % i].setText(_b(label))
             if kind == "toggle":
                 val = self._pending.get(key, _SETTINGS_DEFAULTS.get(key, False))
-                self["s_value_%d" % i].setText(_b("EIN" if val else "AUS"))
+                self["s_value_%d" % i].setText(_b(_("EIN") if val else _("AUS")))
             elif kind == "port":
                 self["s_value_%d" % i].setText(_b(str(self._pending.get(key, 8090))))
+            elif kind == "lang":
+                lv = self._pending.get(key, "auto")
+                self["s_value_%d" % i].setText(_b(_LANG_LABELS.get(lv, lv)))
             else:
                 self["s_value_%d" % i].setText(_b(""))
             if i == self._sel:
@@ -777,19 +798,30 @@ class StreamAnywhereSettingsScreen(Screen):
                 self["s_sel_%d" % i].hide()
 
     def _move_up(self):
-        if self._sel > 0:
-            self._sel -= 1
-            self._refresh()
+        n = len(_get_settings())
+        if n == 0:
+            return
+        self._sel = (self._sel - 1) % n
+        self._refresh()
 
     def _move_down(self):
-        if self._sel < len(_SETTINGS) - 1:
-            self._sel += 1
-            self._refresh()
+        n = len(_get_settings())
+        if n == 0:
+            return
+        self._sel = (self._sel + 1) % n
+        self._refresh()
 
     def _on_ok(self):
-        key, label, kind = _SETTINGS[self._sel]
+        key, label, kind = _get_settings()[self._sel]
         if kind == "toggle":
             self._pending[key] = not self._pending.get(key, _SETTINGS_DEFAULTS.get(key, False))
+            self._refresh()
+        elif kind == "lang":
+            cur = self._pending.get(key, "auto")
+            nxt = _LANG_CYCLE[(_LANG_CYCLE.index(cur) + 1) % len(_LANG_CYCLE)] if cur in _LANG_CYCLE else "auto"
+            self._pending[key] = nxt
+            import sa_locale as _sa_locale
+            _sa_locale.reinit(nxt)
             self._refresh()
         elif kind == "port":
             try:
@@ -804,11 +836,11 @@ class StreamAnywhereSettingsScreen(Screen):
                 self._pending[key] = choice[1]
                 self._refresh()
             self.session.openWithCallback(on_port, ChoiceBox,
-                                          title=_b("WebIF Port w\xc3\xa4hlen"),
+                                          title=_b(_("WebIF Port wählen")),
                                           list=choices)
 
     def _on_green(self):
-        for key, label, kind in _SETTINGS:
+        for key, label, kind in _get_settings():
             if kind == "toggle":
                 _set_setting(key, self._pending[key])
             elif kind == "port":
@@ -817,6 +849,8 @@ class StreamAnywhereSettingsScreen(Screen):
                     _streams.set_webif_port(new_port)
                     _webif.stop()
                     _webif.start(new_port)
+            elif kind == "lang":
+                _set_setting(key, self._pending.get(key, "auto"))
         if self._pending.get("debug_log", False):
             try:
                 open(_SA_DEBUG_FLAG, "w").close()
@@ -834,7 +868,7 @@ class StreamAnywhereSettingsScreen(Screen):
             def on_confirm(result):
                 if result:
                     self.close()
-            _sa_confirm(self.session, _b("Einstellungen ohne Speichern verlassen?"), on_confirm)
+            _sa_confirm(self.session, _b(_("Einstellungen ohne Speichern verlassen?")), on_confirm)
         else:
             self.close()
 
@@ -867,7 +901,7 @@ class StreamAnywhereScreen(Screen):
         self["hint_red"]    = Label(_b(""))
         self["hint_green"]  = Label(_b(""))
         self["hint_ok"]     = Label(_b(""))
-        self["hint_ch"]     = Label(_b("CH+/- = Seite"))
+        self["hint_ch"]     = Label(_b(_("CH+/- = Seite")))
         self["hint_yellow"] = Label(_b(""))
         self["hint_menu"]   = Label(_b(""))
         self["page_label"]  = Label(_b(""))
@@ -972,7 +1006,7 @@ class StreamAnywhereScreen(Screen):
                         self._render_list()
                     else:
                         self._render()
-            _sa_confirm(self.session, _b("Sortierung verwerfen?"), on_confirm)
+            _sa_confirm(self.session, _b(_("Sortierung verwerfen?")), on_confirm)
         elif self._sort_mode:
             self._sort_mode        = False
             self._sort_grabbed_abs = None
@@ -1036,7 +1070,7 @@ class StreamAnywhereScreen(Screen):
         self._sel = min(self._sel, max(0, len(page_items) - 1))
         self._update_sel_marker()
 
-        page_label = "Seite %d/%d" % (self._page + 1, pages) if pages > 1 else ""
+        page_label = _("Seite %d/%d") % (self._page + 1, pages) if pages > 1 else ""
         self["page_label"].setText(_b(page_label))
         self["webif_addr"].setText(getattr(self, "_webif_str", _b("")))
         self._update_legend()
@@ -1172,31 +1206,31 @@ class StreamAnywhereScreen(Screen):
             item = self._items[idx] if idx < len(self._items) else None
 
         if not self._sort_mode:
-            self["hint_red"].setText(_b("Sortieren"))
-            self["hint_green"].setText(_b("Einstellungen"))
+            self["hint_red"].setText(_b(_("Sortieren")))
+            self["hint_green"].setText(_b(_("Einstellungen")))
             if self._list_mode:
-                self["hint_yellow"].setText(_b("Kacheln"))
+                self["hint_yellow"].setText(_b(_("Kacheln")))
                 if item and item.get("type") == "folder":
-                    self["hint_ok"].setText(_b("OK = \xc3\x96ffnen"))
+                    self["hint_ok"].setText(_b(_("OK = Öffnen")))
                 else:
-                    self["hint_ok"].setText(_b("OK = Abspielen"))
+                    self["hint_ok"].setText(_b(_("OK = Abspielen")))
             else:
-                self["hint_yellow"].setText(_b("Liste"))
+                self["hint_yellow"].setText(_b(_("Liste")))
                 if item and item.get("type") == "folder":
-                    self["hint_ok"].setText(_b("OK = \xc3\x96ffnen"))
+                    self["hint_ok"].setText(_b(_("OK = Öffnen")))
                 else:
-                    self["hint_ok"].setText(_b("OK = Abspielen"))
-            self["hint_menu"].setText(_b("MENU = Bearbeiten") if item else _b(""))
+                    self["hint_ok"].setText(_b(_("OK = Abspielen")))
+            self["hint_menu"].setText(_b(_("MENU = Bearbeiten")) if item else _b(""))
         elif self._sort_grabbed_abs is None:
-            self["hint_green"].setText(_b("Fertig"))
-            self["hint_red"].setText(_b("R\xc3\xbcckg\xc3\xa4ngig"))
-            self["hint_ok"].setText(_b("OK = Greifen"))
+            self["hint_green"].setText(_b(_("Fertig")))
+            self["hint_red"].setText(_b(_("Rückgängig")))
+            self["hint_ok"].setText(_b(_("OK = Greifen")))
             self["hint_yellow"].setText(_b(""))
             self["hint_menu"].setText(_b(""))
         else:
-            self["hint_green"].setText(_b("Fertig"))
-            self["hint_red"].setText(_b("R\xc3\xbcckg\xc3\xa4ngig"))
-            self["hint_ok"].setText(_b("OK = Ablegen"))
+            self["hint_green"].setText(_b(_("Fertig")))
+            self["hint_red"].setText(_b(_("Rückgängig")))
+            self["hint_ok"].setText(_b(_("OK = Ablegen")))
             self["hint_yellow"].setText(_b(""))
             self["hint_menu"].setText(_b(""))
 
@@ -1205,7 +1239,7 @@ class StreamAnywhereScreen(Screen):
             self["page_label"].setText(_b("%d/%d" % (self._list_sel + 1, total) if total > 0 else ""))
             self["hint_ch"].setText(_b(""))
         else:
-            self["hint_ch"].setText(_b("CH+/- = Seite bl\xc3\xa4ttern"))
+            self["hint_ch"].setText(_b(_("CH+/- = Seite blättern")))
 
     def _key_red(self):
         if not self._sort_mode:
@@ -1263,7 +1297,7 @@ class StreamAnywhereScreen(Screen):
                     if self._sel >= max(1, page_count):
                         self._sel = max(0, page_count - 1)
                 self._render()
-            _sa_confirm(self.session, _b("Ordner und alle Streams l\xc3\xb6schen?"), on_delete_folder)
+            _sa_confirm(self.session, _b(_("Ordner und alle Streams löschen?")), on_delete_folder)
             return
 
         def update(it):
@@ -1657,7 +1691,7 @@ class StreamAnywhereGroupScreen(Screen):
         self["hint_red"]    = Label(_b(""))
         self["hint_green"]  = Label(_b(""))
         self["hint_ok"]     = Label(_b(""))
-        self["hint_ch"]     = Label(_b("CH+/- = Seite"))
+        self["hint_ch"]     = Label(_b(_("CH+/- = Seite")))
         self["hint_yellow"] = Label(_b(""))
         self["hint_menu"]   = Label(_b(""))
         self["page_label"]  = Label(_b(""))
@@ -1759,7 +1793,7 @@ class StreamAnywhereGroupScreen(Screen):
                         self._render_list()
                     else:
                         self._render()
-            _sa_confirm(self.session, _b("Sortierung verwerfen?"), on_confirm)
+            _sa_confirm(self.session, _b(_("Sortierung verwerfen?")), on_confirm)
         elif self._sort_mode:
             self._sort_mode        = False
             self._sort_grabbed_abs = None
@@ -1809,7 +1843,7 @@ class StreamAnywhereGroupScreen(Screen):
         self._sel = min(self._sel, max(0, len(page_items) - 1))
         self._update_sel_marker()
 
-        page_label = "Seite %d/%d" % (self._page + 1, pages) if pages > 1 else ""
+        page_label = _("Seite %d/%d") % (self._page + 1, pages) if pages > 1 else ""
         self["page_label"].setText(_b(page_label))
         self["webif_addr"].setText(getattr(self, "_webif_str", _b("")))
         self._update_legend()
@@ -1945,21 +1979,21 @@ class StreamAnywhereGroupScreen(Screen):
             item = self._items[idx] if idx < len(self._items) else None
 
         if not self._sort_mode:
-            self["hint_red"].setText(_b("Sortieren"))
-            self["hint_green"].setText(_b("Einstellungen"))
-            self["hint_ok"].setText(_b("OK = Abspielen"))
-            self["hint_yellow"].setText(_b("Kacheln") if self._list_mode else _b("Liste"))
-            self["hint_menu"].setText(_b("MENU = Bearbeiten") if item else _b(""))
+            self["hint_red"].setText(_b(_("Sortieren")))
+            self["hint_green"].setText(_b(_("Einstellungen")))
+            self["hint_ok"].setText(_b(_("OK = Abspielen")))
+            self["hint_yellow"].setText(_b(_("Kacheln")) if self._list_mode else _b(_("Liste")))
+            self["hint_menu"].setText(_b(_("MENU = Bearbeiten")) if item else _b(""))
         elif self._sort_grabbed_abs is None:
-            self["hint_green"].setText(_b("Fertig"))
-            self["hint_red"].setText(_b("R\xc3\xbcckg\xc3\xa4ngig"))
-            self["hint_ok"].setText(_b("OK = Greifen"))
+            self["hint_green"].setText(_b(_("Fertig")))
+            self["hint_red"].setText(_b(_("Rückgängig")))
+            self["hint_ok"].setText(_b(_("OK = Greifen")))
             self["hint_yellow"].setText(_b(""))
             self["hint_menu"].setText(_b(""))
         else:
-            self["hint_green"].setText(_b("Fertig"))
-            self["hint_red"].setText(_b("R\xc3\xbcckg\xc3\xa4ngig"))
-            self["hint_ok"].setText(_b("OK = Ablegen"))
+            self["hint_green"].setText(_b(_("Fertig")))
+            self["hint_red"].setText(_b(_("Rückgängig")))
+            self["hint_ok"].setText(_b(_("OK = Ablegen")))
             self["hint_yellow"].setText(_b(""))
             self["hint_menu"].setText(_b(""))
 
@@ -1968,7 +2002,7 @@ class StreamAnywhereGroupScreen(Screen):
             self["page_label"].setText(_b("%d/%d" % (self._list_sel + 1, total) if total > 0 else ""))
             self["hint_ch"].setText(_b(""))
         else:
-            self["hint_ch"].setText(_b("CH+/- = Seite bl\xc3\xa4ttern"))
+            self["hint_ch"].setText(_b(_("CH+/- = Seite blättern")))
 
     def _key_red(self):
         if not self._sort_mode:
@@ -2420,7 +2454,7 @@ def Plugins(**kwargs):
     return [
         PluginDescriptor(
             name        = b"StreamAnything",
-            description = b"Eigene Streams - konfigurierbar per WebIF",
+            description = _b(_("Eigene Streams - konfigurierbar per WebIF")),
             where       = PluginDescriptor.WHERE_PLUGINMENU,
             icon        = b"plugin.png",
             fnc         = main,

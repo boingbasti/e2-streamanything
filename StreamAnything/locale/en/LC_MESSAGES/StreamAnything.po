@@ -1,0 +1,368 @@
+# StreamAnything - English translation
+# Author: saufsoldat
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+# Einstellungs-Labels
+msgid "Links/Rechts zum Blättern"
+msgstr "Left/Right to scroll"
+
+msgid "Höchste Qualität bevorzugen"
+msgstr "Prefer best quality"
+
+msgid "ServiceApp auto-konfigurieren"
+msgstr "Auto-configure ServiceApp"
+
+msgid "WebIF im Hintergrund"
+msgstr "WebIF in background"
+
+msgid "WebIF Port"
+msgstr "WebIF port"
+
+msgid "Debug-Log"
+msgstr "Debug log"
+
+msgid "Sprache"
+msgstr "Language"
+
+msgid "Datei auswählen"
+msgstr "Choose file"
+
+msgid "Keine ausgewählt"
+msgstr "No file chosen"
+
+# Allgemeine UI-Elemente
+msgid "Einstellungen"
+msgstr "Settings"
+
+msgid "OK = Ändern"
+msgstr "OK = Change"
+
+msgid "Speichern"
+msgstr "Save"
+
+msgid "Abbrechen"
+msgstr "Cancel"
+
+msgid "EIN"
+msgstr "ON"
+
+msgid "AUS"
+msgstr "OFF"
+
+msgid "WebIF Port wählen"
+msgstr "Select WebIF port"
+
+# Choice-Screen
+msgid "OK = Auswählen"
+msgstr "OK = Select"
+
+# Bestätigungsdialoge
+msgid "Ja"
+msgstr "Yes"
+
+msgid "Nein"
+msgstr "No"
+
+msgid "Ohne Speichern beenden?"
+msgstr "Exit without saving?"
+
+msgid "Einstellungen ohne Speichern verlassen?"
+msgstr "Leave settings without saving?"
+
+msgid "Sortierung verwerfen?"
+msgstr "Discard sort order?"
+
+msgid "Stream löschen?"
+msgstr "Delete stream?"
+
+msgid "Ordner und alle Streams löschen?"
+msgstr "Delete folder and all streams?"
+
+# Stream-Kontextmenü
+msgid "Player:     "
+msgstr "Player:     "
+
+msgid "User-Agent: "
+msgstr "User-Agent: "
+
+msgid "Lok. Playlist Server: "
+msgstr "Local playlist srvr: "
+
+msgid "Löschen"
+msgstr "Delete"
+
+msgid "(keiner)"
+msgstr "(none)"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "Standard"
+msgstr "Default"
+
+msgid "Player wählen"
+msgstr "Select player"
+
+msgid "User-Agent wählen"
+msgstr "Select user agent"
+
+# Navigationsleiste (Haupt-Screen)
+msgid "Sortieren"
+msgstr "Sort"
+
+msgid "OK = Abspielen"
+msgstr "OK = Play"
+
+msgid "OK = Öffnen"
+msgstr "OK = Open"
+
+msgid "Kacheln"
+msgstr "Tiles"
+
+msgid "Liste"
+msgstr "List"
+
+msgid "MENU = Bearbeiten"
+msgstr "MENU = Edit"
+
+msgid "Fertig"
+msgstr "Done"
+
+msgid "Rückgängig"
+msgstr "Undo"
+
+msgid "OK = Greifen"
+msgstr "OK = Grab"
+
+msgid "OK = Ablegen"
+msgstr "OK = Drop"
+
+msgid "CH+/- = Seite"
+msgstr "CH+/- = Page"
+
+msgid "CH+/- = Seite blättern"
+msgstr "CH+/- = Page up/down"
+
+msgid "Seite %d/%d"
+msgstr "Page %d/%d"
+
+# Plugin-Beschreibung
+msgid "Eigene Streams - konfigurierbar per WebIF"
+msgstr "Custom streams - configurable via WebIF"
+
+# WebIF – Python API-Fehlermeldungen
+msgid "multipart erforderlich"
+msgstr "multipart required"
+
+msgid "Nur PNG-Dateien erlaubt"
+msgstr "PNG files only"
+
+msgid "Datei zu groß (max. 2 MB)"
+msgstr "File too large (max. 2 MB)"
+
+msgid "Keine gültige PNG-Datei"
+msgstr "Not a valid PNG file"
+
+msgid "Keine URL"
+msgstr "No URL"
+
+msgid "Download fehlgeschlagen oder keine gültige PNG-Datei"
+msgstr "Download failed or not a valid PNG file"
+
+msgid "Name erforderlich"
+msgstr "Name required"
+
+msgid "URL erforderlich"
+msgstr "URL required"
+
+# WebIF – Modale / statische HTML-Elemente
+msgid "Stream bearbeiten"
+msgstr "Edit stream"
+
+msgid "Ordner bearbeiten"
+msgstr "Edit folder"
+
+msgid "M3U importieren"
+msgstr "Import M3U"
+
+msgid "User-Agent gilt nur bei Player: exteplayer3 (HLS)"
+msgstr "User-Agent only applies to player: exteplayer3 (HLS)"
+
+msgid "Lokaler Playlist Server (HLS Audiofix)"
+msgstr "Local playlist server (HLS audiofix)"
+
+msgid "Logo für alle Streams im Ordner übernehmen"
+msgstr "Apply logo to all streams in folder"
+
+msgid "Laden"
+msgstr "Load"
+
+msgid "Von Ordner"
+msgstr "From folder"
+
+msgid "Ordnername"
+msgstr "Folder name"
+
+msgid "Ordner-Name"
+msgstr "Folder name"
+
+msgid "Alle übernehmen"
+msgstr "Import all"
+
+msgid "Auswählen"
+msgstr "Select"
+
+msgid "Alle"
+msgstr "All"
+
+msgid "Keine"
+msgstr "None"
+
+msgid "Zurück"
+msgstr "Back"
+
+msgid "Weiter"
+msgstr "Continue"
+
+msgid "Einzelne Streams"
+msgstr "Individual streams"
+
+msgid "Als neuer Ordner"
+msgstr "As new folder"
+
+msgid "In vorhandenen Ordner"
+msgstr "Into existing folder"
+
+msgid "Logo-URLs automatisch laden"
+msgstr "Auto-load logo URLs"
+
+msgid "Importieren"
+msgstr "Import"
+
+msgid "Importiere…"
+msgstr "Importing…"
+
+msgid "Exportieren"
+msgstr "Export"
+
+# WebIF – JS-gerendertes Interface
+msgid "Eintrag hinzufügen"
+msgstr "Add entry"
+
+msgid "Stream hinzufügen"
+msgstr "Add stream"
+
+msgid "Ordner hinzufügen"
+msgstr "Add folder"
+
+msgid "Einträge hinzufügen"
+msgstr "Add entries"
+
+msgid "Alles ersetzen"
+msgstr "Replace all"
+
+msgid "ZIP-Backup importieren"
+msgstr "Import ZIP backup"
+
+msgid "Alle Einträge und Logos als ZIP exportieren"
+msgstr "Export all entries and logos as ZIP"
+
+msgid "Ordner"
+msgstr "Folder"
+
+msgid "Einträge"
+msgstr "Entries"
+
+msgid "Alle einklappen"
+msgstr "Collapse all"
+
+msgid "Alle ausklappen"
+msgstr "Expand all"
+
+msgid "Noch keine Einträge."
+msgstr "No entries yet."
+
+msgid "Noch keine Streams in diesem Ordner."
+msgstr "No streams in this folder yet."
+
+msgid "Ordner und alle enthaltenen Streams löschen?"
+msgstr "Delete folder and all contained streams?"
+
+msgid "Nur PNG-Dateien werden unterstützt."
+msgstr "Only PNG files are supported."
+
+msgid "Upload fehlgeschlagen: "
+msgstr "Upload failed: "
+
+msgid "Bitte eine URL eingeben"
+msgstr "Please enter a URL"
+
+msgid "URL endet nicht auf .png – trotzdem versuchen?"
+msgstr "URL does not end in .png – try anyway?"
+
+msgid "Logo-Download fehlgeschlagen: "
+msgstr "Logo download failed: "
+
+msgid "Bitte zuerst eine Backup-Datei (.zip) auswählen."
+msgstr "Please select a backup file (.zip) first."
+
+msgid "Achtung: Alle vorhandenen Einträge werden gelöscht und durch die Backup-Datei ersetzt. Fortfahren?"
+msgstr "Warning: All existing entries will be deleted and replaced by the backup file. Continue?"
+
+msgid "Die Einträge aus der Backup-Datei werden zu den vorhandenen hinzugefügt. Duplikate werden übersprungen. Fortfahren?"
+msgstr "The entries from the backup file will be added to the existing ones. Duplicates will be skipped. Continue?"
+
+msgid "Import abgeschlossen: "
+msgstr "Import complete: "
+
+msgid "Einträge importiert."
+msgstr "entries imported."
+
+msgid "Import fehlgeschlagen: "
+msgstr "Import failed: "
+
+msgid "Unbekannter Fehler"
+msgstr "Unknown error"
+
+msgid "Keine Streams in der Datei gefunden."
+msgstr "No streams found in file."
+
+msgid "Bitte mindestens einen Stream auswählen."
+msgstr "Please select at least one stream."
+
+msgid "ausgewählt"
+msgstr "selected"
+
+msgid "Keine Ordner vorhanden"
+msgstr "No folders available"
+
+msgid "gefunden"
+msgstr "found"
+
+msgid "mit Logo"
+msgstr "with logo"
+
+msgid "von"
+msgstr "of"
+
+msgid "importiert…"
+msgstr "imported…"
+
+msgid "importiert."
+msgstr "imported."
+
+msgid "bereits vorhanden, übersprungen."
+msgstr "already present, skipped."
+
+msgid "Fehler beim Erstellen des Ordners."
+msgstr "Error creating folder."
+
+msgid "Bitte einen Ordner-Namen eingeben."
+msgstr "Please enter a folder name."
+
+msgid "Bitte einen Ordner auswählen."
+msgstr "Please select a folder."

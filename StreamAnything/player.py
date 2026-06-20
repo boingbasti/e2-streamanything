@@ -19,8 +19,16 @@ try:
 except ImportError:
     from Screens.InfoBar import MoviePlayer
 
+_OFFLINE_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "offline_stream.mp4")
+
+
+def _offline_ref():
+    return eServiceReference(4097, 0, _OFFLINE_VIDEO)
+
 
 class SAStreamPlayer(MoviePlayer):
+    ENABLE_RESUME_SUPPORT = False
+
     def __init__(self, session, service, streams=None, stream_index=0,
                  autoconfigure_serviceapp=True, prefer_best_quality=True):
         MoviePlayer.__init__(self, session, service)
@@ -41,6 +49,7 @@ class SAStreamPlayer(MoviePlayer):
             )
 
     def _switch_stream(self, direction):
+        _dbg("_switch_stream called direction=%d" % direction)
         new_idx = self._stream_index + direction
         while 0 <= new_idx < len(self._streams):
             if self._streams[new_idx].get("type") != "folder":
@@ -83,17 +92,21 @@ class SAStreamPlayer(MoviePlayer):
         ref = _build_ref(url, name, player, user_agent,
                          self._autoconfigure, self._prefer_best_quality,
                          hls_audio_fix=hls_fix)
-        self._stream_index = new_idx
+        self._stream_index   = new_idx
+        self._showing_offline = False
         self.session.nav.playService(ref)
 
     def leavePlayer(self):
         self.close()
 
     def doEofInternal(self, playing):
+        _dbg("doEofInternal called playing=%s streams=%d showing_offline=%s" % (
+            playing, len(self._streams), getattr(self, "_showing_offline", False)))
+        if len(self._streams) > 1:
+            self._showing_offline = True
+            self.session.nav.playService(_offline_ref())
+            return
         self.close()
-
-    def showResumePoint(self):
-        pass
 
 
 def _has_serviceapp():

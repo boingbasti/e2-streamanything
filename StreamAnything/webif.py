@@ -28,6 +28,18 @@ try:
 except Exception:
     _PLUGIN_VERSION = "?"
 
+from sa_locale import _ as _gettext
+
+
+def _(txt):
+    s = _gettext(txt)
+    if isinstance(s, bytes):
+        try:
+            return s.decode("utf-8")
+        except Exception:
+            return txt
+    return s
+
 _server = None
 _server_thread = None
 _server_lock = threading.Lock()
@@ -128,7 +140,7 @@ class _Handler(BaseHTTPRequestHandler):
         mode = qs.get("mode", ["merge"])[0]
         ct   = self.headers.get("Content-Type", "")
         if "multipart/form-data" not in ct:
-            self._send_json({"ok": False, "error": "multipart erforderlich"}, 400)
+            self._send_json({"ok": False, "error": _("multipart erforderlich")}, 400)
             return
         try:
             form  = cgi.FieldStorage(
@@ -245,17 +257,17 @@ class _Handler(BaseHTTPRequestHandler):
                     field = form["file"]
                     ext   = os.path.splitext(field.filename)[1].lower()
                     if ext != ".png":
-                        self._send_json({"ok": False, "error": "Nur PNG-Dateien erlaubt"}, 400)
+                        self._send_json({"ok": False, "error": _("Nur PNG-Dateien erlaubt")}, 400)
                         return
                     data = field.file.read()
                     if len(data) > 2 * 1024 * 1024:
-                        self._send_json({"ok": False, "error": "Datei zu groß (max. 2 MB)"}, 400)
+                        self._send_json({"ok": False, "error": _("Datei zu groß (max. 2 MB)")}, 400)
                         return
                     saved = _streams.save_logo_bytes(data)
                     if saved:
                         self._send_json({"ok": True, "logo": "logos/" + os.path.basename(saved)})
                     else:
-                        self._send_json({"ok": False, "error": "Keine gültige PNG-Datei"}, 400)
+                        self._send_json({"ok": False, "error": _("Keine gültige PNG-Datei")}, 400)
                 except Exception as e:
                     self._send_json({"ok": False, "error": str(e)}, 500)
             else:
@@ -263,13 +275,13 @@ class _Handler(BaseHTTPRequestHandler):
                 data = self._parse_json_body()
                 url  = data.get("url", "")
                 if not url:
-                    self._send_json({"ok": False, "error": "Keine URL"}, 400)
+                    self._send_json({"ok": False, "error": _("Keine URL")}, 400)
                     return
                 saved = _streams.fetch_logo_from_url(url)
                 if saved:
                     self._send_json({"ok": True, "logo": "logos/" + os.path.basename(saved)})
                 else:
-                    self._send_json({"ok": False, "error": "Download fehlgeschlagen oder keine gültige PNG-Datei"}, 400)
+                    self._send_json({"ok": False, "error": _("Download fehlgeschlagen oder keine gültige PNG-Datei")}, 400)
             return
 
         # ---- Flat: Stream hinzufügen ----
@@ -283,10 +295,10 @@ class _Handler(BaseHTTPRequestHandler):
             logo_url      = data.get("logo_url", "")
             hls_audio_fix = bool(data.get("hls_audio_fix", False))
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             if not url:
-                self._send_json({"ok": False, "error": "URL erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("URL erforderlich")}, 400)
                 return
             _streams.add_flat_stream(name, url, logo, player, user_agent, logo_url, hls_audio_fix)
             self._send_json({"ok": True})
@@ -320,7 +332,7 @@ class _Handler(BaseHTTPRequestHandler):
             logo     = data.get("logo", "")
             logo_url = data.get("logo_url", "")
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             group_id = _streams.add_group(name, logo, logo_url)
             self._send_json({"ok": True, "id": group_id})
@@ -347,10 +359,10 @@ class _Handler(BaseHTTPRequestHandler):
             logo_url      = data.get("logo_url", "")
             hls_audio_fix = bool(data.get("hls_audio_fix", False))
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             if not url:
-                self._send_json({"ok": False, "error": "URL erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("URL erforderlich")}, 400)
                 return
             _streams.add_group_stream(group_id, name, url, logo, player, user_agent, logo_url, hls_audio_fix)
             self._send_json({"ok": True})
@@ -383,7 +395,7 @@ class _Handler(BaseHTTPRequestHandler):
             stream_id = parts[3]
             name = (data.get("name") or "").strip()
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             _streams.update_flat_stream(
                 stream_id,
@@ -403,7 +415,7 @@ class _Handler(BaseHTTPRequestHandler):
             group_id = parts[3]
             name = (data.get("name") or "").strip()
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             _streams.update_group(
                 group_id,
@@ -420,7 +432,7 @@ class _Handler(BaseHTTPRequestHandler):
             stream_id = parts[5]
             name = (data.get("name") or "").strip()
             if not name:
-                self._send_json({"ok": False, "error": "Name erforderlich"}, 400)
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             _streams.update_group_stream(
                 group_id, stream_id,
@@ -559,6 +571,8 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
 .empty{color:#555;font-size:.9rem;padding:8px 0}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
+.fi-wrap{display:inline-flex;align-items:center;gap:8px}
+.fi-name{color:#888;font-size:.9em}
 .modal{background:#1c1c2e;border-radius:10px;padding:24px;width:100%;max-width:460px}
 .modal h3{margin-bottom:16px;color:#cc3d2d}
 .modal .form-row{margin-bottom:10px}
@@ -603,7 +617,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
           <button class="btn btn-edit btn-sm" id="editInheritFolderBtn" style="display:none" onclick="inheritFolderLogoEdit()">Von Ordner</button>
         </div>
         <div class="form-row">
-          <input type="file" id="editLogoFile" accept=".png" onchange="uploadLogo('edit')">
+          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('editLogoFile').click()">__FI_BTN__</button><span id="editLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="editLogoFile" accept=".png" style="display:none" onchange="uploadLogo('edit');document.getElementById('editLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
         </div>
         <p class="hint">PNG</p>
       </div>
@@ -628,7 +642,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
           <button class="btn btn-edit btn-sm" onclick="fetchLogoFromUrl('folderEdit')">Laden</button>
         </div>
         <div class="form-row">
-          <input type="file" id="folderEditLogoFile" accept=".png" onchange="uploadLogo('folderEdit')">
+          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('folderEditLogoFile').click()">__FI_BTN__</button><span id="folderEditLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="folderEditLogoFile" accept=".png" style="display:none" onchange="uploadLogo('folderEdit');document.getElementById('folderEditLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
         </div>
         <p class="hint">PNG</p>
       </div>
@@ -724,6 +738,13 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
 </div>
 
 <script>
+function resetFileInput(id){
+  var inp=document.getElementById(id);if(!inp)return;
+  try{inp.value='';}catch(e){}
+  var nm=document.getElementById(id+'_nm');
+  if(nm)nm.textContent=inp.parentNode.getAttribute('data-no-file')||'';
+}
+
 var state = {
   items: [],
   addType: 'stream',
@@ -807,7 +828,7 @@ function renderAddForm(){
   h += '<div>';
   h += '<div class="form-row"><input id="newLogoUrl" placeholder="Logo-URL (optional)">';
   h += '<button class="btn btn-edit btn-sm" onclick="fetchLogoFromUrl(\'add\')">Laden</button></div>';
-  h += '<div class="form-row"><input type="file" id="newLogoFile" accept=".png" onchange="uploadLogo(\'add\')"></div>';
+  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'newLogoFile\').click()">__FI_BTN__</button><span id="newLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="newLogoFile" accept=".png" style="display:none" onchange="uploadLogo(\'add\');document.getElementById(\'newLogoFile_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
   h += '<p class="hint">PNG</p>';
   h += '</div></div>';
   h += '<button class="btn btn-primary" onclick="addItem()">'+(isStream?'Stream hinzufügen':'Ordner hinzufügen')+'</button>';
@@ -922,7 +943,7 @@ function renderFolderItem(g, gi){
   h += '<div class="form-row"><input id="fs_logo_url_'+g.id+'" placeholder="Logo-URL (optional)">';
   h += '<button class="btn btn-edit btn-sm" onclick="fetchLogoTo(\'fs_logo_url_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\')">Laden</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="inheritFolderLogo(\''+g.id+'\')">Von Ordner</button></div>';
-  h += '<div class="form-row"><input type="file" id="fs_logo_file_'+g.id+'" accept=".png" onchange="uploadLogoTo(\'fs_logo_file_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\')"></div>';
+  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'fs_logo_file_'+g.id+'\').click()">__FI_BTN__</button><span id="fs_logo_file_'+g.id+'_nm" class="fi-name">__FI_NONE__</span><input type="file" id="fs_logo_file_'+g.id+'" accept=".png" style="display:none" onchange="uploadLogoTo(\'fs_logo_file_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\');document.getElementById(\'fs_logo_file_'+g.id+'_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
   h += '<p class="hint">PNG</p>';
   h += '</div></div>';
   h += '<button class="btn btn-primary btn-sm" onclick="addFolderStream(\''+g.id+'\')">Stream hinzufügen</button>';
@@ -996,6 +1017,7 @@ function openEditStream(id){
   var prev=document.getElementById('editLogoPreview');
   if(s.logo){prev.src='/'+s.logo;prev.style.display='';}else{prev.style.display='none';}
   document.getElementById('editModal').classList.add('open');
+  resetFileInput('editLogoFile');
 }
 
 function openEditFolderStream(gid,sid){
@@ -1016,6 +1038,7 @@ function openEditFolderStream(gid,sid){
   var prev=document.getElementById('editLogoPreview');
   if(s.logo){prev.src='/'+s.logo;prev.style.display='';}else{prev.style.display='none';}
   document.getElementById('editModal').classList.add('open');
+  resetFileInput('editLogoFile');
 }
 
 function saveEdit(){
@@ -1056,6 +1079,7 @@ function openEditFolder(id){
   var prev=document.getElementById('folderEditLogoPreview');
   if(g.logo){prev.src='/'+g.logo;prev.style.display='';}else{prev.style.display='none';}
   document.getElementById('folderEditModal').classList.add('open');
+  resetFileInput('folderEditLogoFile');
 }
 
 function saveFolderEdit(){
@@ -1225,7 +1249,7 @@ function renderBackupSection(){
 
   h += '<div style="flex:1;min-width:260px">';
   h += '<p style="color:#666;font-size:.85rem;margin-bottom:8px">ZIP-Backup importieren</p>';
-  h += '<div class="form-row"><input type="file" id="importFile" accept=".zip"></div>';
+  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'importFile\').click()">__FI_BTN__</button><span id="importFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="importFile" accept=".zip" style="display:none" onchange="document.getElementById(\'importFile_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
   h += '<div style="display:flex;gap:8px;margin-top:4px">';
   h += '<button class="btn btn-edit" id="importBtnMerge" onclick="importSettings(\'merge\')">Einträge hinzufügen</button>';
   h += '<button class="btn btn-danger" id="importBtnReplace" onclick="importSettings(\'replace\')">Alles ersetzen</button>';
@@ -1537,8 +1561,12 @@ function dOver(e,id,gid){
   }
   e.preventDefault();
   if(tgt.type==='folder'&&!srcIsFolder){
-    e.currentTarget.classList.remove('insert-before','insert-after');
-    e.currentTarget.classList.add('folder-drop-target');
+    var frect=e.currentTarget.getBoundingClientRect();
+    var frelY=e.clientY-frect.top;
+    e.currentTarget.classList.remove('insert-before','insert-after','folder-drop-target');
+    if(frelY<frect.height*0.25) e.currentTarget.classList.add('insert-before');
+    else if(frelY>frect.height*0.75) e.currentTarget.classList.add('insert-after');
+    else e.currentTarget.classList.add('folder-drop-target');
   } else {
     var rect=e.currentTarget.getBoundingClientRect();
     e.currentTarget.classList.remove('insert-before','insert-after','folder-drop-target');
@@ -1643,7 +1671,12 @@ function tMove(e){
     if(!ts.srcGroup&&lg) return;
     var srcItem2=_findItem(ts.srcId);
     if(tgt.type==='folder'&&!(srcItem2&&srcItem2.type==='folder')){
-      li.classList.add('folder-drop-target');
+      var frect2=li.getBoundingClientRect();
+      var frelY2=t.clientY-frect2.top;
+      li.classList.remove('insert-before','insert-after','folder-drop-target');
+      if(frelY2<frect2.height*0.25){ ts.insertBefore=true; li.classList.add('insert-before'); }
+      else if(frelY2>frect2.height*0.75){ ts.insertBefore=false; li.classList.add('insert-after'); }
+      else li.classList.add('folder-drop-target');
     } else {
       var rect=li.getBoundingClientRect();
       ts.insertBefore=t.clientY<rect.top+rect.height/2;
@@ -1699,4 +1732,180 @@ function closeModal(id){
 </datalist>
 </body>
 </html>"""
-    return _html.replace("__SA_VERSION__", _PLUGIN_VERSION)
+    _html = _html.replace("__SA_VERSION__", _PLUGIN_VERSION)
+    import os as _os
+    _html = _html.replace(
+        '<html lang="de">',
+        '<html lang="' + (_os.environ.get("LANGUAGE", "de") or "de")[:2] + '">')
+
+    # --- longer / more specific strings first ---
+    _html = _html.replace(
+        "Achtung: Alle vorhandenen Eintr\xe4ge werden gel\xf6scht und durch die Backup-Datei ersetzt. Fortfahren?",
+        _("Achtung: Alle vorhandenen Eintr\xe4ge werden gel\xf6scht und durch die Backup-Datei ersetzt. Fortfahren?"))
+    _html = _html.replace(
+        "Die Eintr\xe4ge aus der Backup-Datei werden zu den vorhandenen hinzugef\xfcgt. Duplikate werden \xfcbersprungen. Fortfahren?",
+        _("Die Eintr\xe4ge aus der Backup-Datei werden zu den vorhandenen hinzugef\xfcgt. Duplikate werden \xfcbersprungen. Fortfahren?"))
+    _html = _html.replace(
+        "Logo f\xfcr alle Streams im Ordner \xfcbernehmen",
+        _("Logo f\xfcr alle Streams im Ordner \xfcbernehmen"))
+    _html = _html.replace(
+        "Alle Eintr\xe4ge und Logos als ZIP exportieren",
+        _("Alle Eintr\xe4ge und Logos als ZIP exportieren"))
+    _html = _html.replace(
+        "User-Agent gilt nur bei Player: exteplayer3 (HLS)",
+        _("User-Agent gilt nur bei Player: exteplayer3 (HLS)"))
+    _html = _html.replace(
+        "Lokaler Playlist Server (HLS Audiofix)",
+        _("Lokaler Playlist Server (HLS Audiofix)"))
+    _html = _html.replace(
+        "Bitte zuerst eine Backup-Datei (.zip) ausw\xe4hlen.",
+        _("Bitte zuerst eine Backup-Datei (.zip) ausw\xe4hlen."))
+    _html = _html.replace(
+        "Bitte mindestens einen Stream ausw\xe4hlen.",
+        _("Bitte mindestens einen Stream ausw\xe4hlen."))
+    _html = _html.replace(
+        "Bitte einen Ordner-Namen eingeben.",
+        _("Bitte einen Ordner-Namen eingeben."))
+    _html = _html.replace(
+        "Bitte einen Ordner ausw\xe4hlen.",
+        _("Bitte einen Ordner ausw\xe4hlen."))
+    _html = _html.replace(
+        "Fehler beim Erstellen des Ordners.",
+        _("Fehler beim Erstellen des Ordners."))
+    _html = _html.replace(
+        "Nur PNG-Dateien werden unterst\xfctzt.",
+        _("Nur PNG-Dateien werden unterst\xfctzt."))
+    _html = _html.replace(
+        "Logo-Download fehlgeschlagen: ",
+        _("Logo-Download fehlgeschlagen: "))
+    _html = _html.replace(
+        "Upload fehlgeschlagen: ",
+        _("Upload fehlgeschlagen: "))
+    _html = _html.replace(
+        "Bitte eine URL eingeben",
+        _("Bitte eine URL eingeben"))
+    _html = _html.replace(
+        "URL endet nicht auf .png – trotzdem versuchen?",
+        _("URL endet nicht auf .png – trotzdem versuchen?"))
+    _html = _html.replace(
+        "Keine Streams in der Datei gefunden.",
+        _("Keine Streams in der Datei gefunden."))
+    _html = _html.replace(
+        "Noch keine Streams in diesem Ordner.",
+        _("Noch keine Streams in diesem Ordner."))
+    _html = _html.replace(
+        "Noch keine Eintr\xe4ge.",
+        _("Noch keine Eintr\xe4ge."))
+    _html = _html.replace(
+        "Ordner und alle enthaltenen Streams l\xf6schen?",
+        _("Ordner und alle enthaltenen Streams l\xf6schen?"))
+    _html = _html.replace(
+        "ZIP-Backup importieren",
+        _("ZIP-Backup importieren"))
+    _html = _html.replace(
+        "Logo-URLs automatisch laden",
+        _("Logo-URLs automatisch laden"))
+    _html = _html.replace(
+        "Alle \xfcbernehmen",
+        _("Alle \xfcbernehmen"))
+    _html = _html.replace(
+        "Alle einklappen",
+        _("Alle einklappen"))
+    _html = _html.replace(
+        "Alle ausklappen",
+        _("Alle ausklappen"))
+    _html = _html.replace(
+        "Eintr\xe4ge hinzuf\xfcgen",
+        _("Eintr\xe4ge hinzuf\xfcgen"))
+    _html = _html.replace(
+        "Alles ersetzen",
+        _("Alles ersetzen"))
+    _html = _html.replace(
+        "M3U importieren",
+        _("M3U importieren"))
+    _html = _html.replace(
+        "Ordner bearbeiten",
+        _("Ordner bearbeiten"))
+    _html = _html.replace(
+        "Stream bearbeiten",
+        _("Stream bearbeiten"))
+    _html = _html.replace(
+        "Eintrag hinzuf\xfcgen",
+        _("Eintrag hinzuf\xfcgen"))
+    _html = _html.replace(
+        "Ordner hinzuf\xfcgen",
+        _("Ordner hinzuf\xfcgen"))
+    _html = _html.replace(
+        "Stream hinzuf\xfcgen",
+        _("Stream hinzuf\xfcgen"))
+    _html = _html.replace(
+        "Stream l\xf6schen?",
+        _("Stream l\xf6schen?"))
+    _html = _html.replace(
+        "In vorhandenen Ordner",
+        _("In vorhandenen Ordner"))
+    _html = _html.replace(
+        "Als neuer Ordner",
+        _("Als neuer Ordner"))
+    _html = _html.replace(
+        "Einzelne Streams",
+        _("Einzelne Streams"))
+    _html = _html.replace(
+        "Import abgeschlossen: ",
+        _("Import abgeschlossen: "))
+    _html = _html.replace(
+        "Import fehlgeschlagen: ",
+        _("Import fehlgeschlagen: "))
+    _html = _html.replace(
+        "Unbekannter Fehler",
+        _("Unbekannter Fehler"))
+    _html = _html.replace(
+        "Name erforderlich",
+        _("Name erforderlich"))
+    _html = _html.replace(
+        "URL erforderlich",
+        _("URL erforderlich"))
+    _html = _html.replace(
+        "Importiere…",
+        _("Importiere…"))
+    _html = _html.replace(
+        "Importieren",
+        _("Importieren"))
+    _html = _html.replace(
+        "Exportieren",
+        _("Exportieren"))
+    _html = _html.replace(
+        "Ausw\xe4hlen",
+        _("Ausw\xe4hlen"))
+    _html = _html.replace("Abbrechen", _("Abbrechen"))
+    _html = _html.replace("Speichern", _("Speichern"))
+    _html = _html.replace("Von Ordner", _("Von Ordner"))
+    _html = _html.replace("Laden", _("Laden"))
+    _html = _html.replace("Weiter", _("Weiter"))
+    _html = _html.replace(">Alle<", ">" + _("Alle") + "<")
+    _html = _html.replace(">Keine<", ">" + _("Keine") + "<")
+    _html = _html.replace(">Ordner<", ">" + _("Ordner") + "<")
+    _html = _html.replace(">&#128193; Ordner<", ">&#128193; " + _("Ordner") + "<")
+    _html = _html.replace("__FI_BTN__", _("Datei ausw\xe4hlen"))
+    _html = _html.replace("__FI_NONE__", _("Keine ausgew\xe4hlt"))
+    _html = _html.replace('placeholder="Ordnername"',
+                          'placeholder="' + _("Ordnername") + '"')
+    _html = _html.replace('placeholder="Ordner-Name"',
+                          'placeholder="' + _("Ordner-Name") + '"')
+    _html = _html.replace(" bereits vorhanden, \xfcbersprungen.",
+                          " " + _("bereits vorhanden, \xfcbersprungen."))
+    _html = _html.replace(" Eintr\xe4ge importiert.",
+                          " " + _("Eintr\xe4ge importiert."))
+    _html = _html.replace("h2>Eintr\xe4ge ('+",
+                          "h2>" + _("Eintr\xe4ge") + " ('+")
+    _html = _html.replace("— Keine Ordner vorhanden —",
+                          "— " + _("Keine Ordner vorhanden") + " —")
+    _html = _html.replace("' gefunden'", "' " + _("gefunden") + "'")
+    _html = _html.replace("' mit Logo'", "' " + _("mit Logo") + "'")
+    _html = _html.replace("' von '", "' " + _("von") + " '")
+    _html = _html.replace("' importiert…'", "' " + _("importiert…") + "'")
+    _html = _html.replace("' importiert.'", "' " + _("importiert.") + "'")
+    _html = _html.replace("' ausgew\xe4hlt'", "' " + _("ausgew\xe4hlt") + "'")
+    _html = _html.replace("&#8592; Zur\xfcck", "&#8592; " + _("Zur\xfcck"))
+
+    return _html
