@@ -114,12 +114,6 @@ msgstr "Select user agent"
 msgid "Sortieren"
 msgstr "Sort"
 
-msgid "OK = Abspielen"
-msgstr "OK = Play"
-
-msgid "OK = Öffnen"
-msgstr "OK = Open"
-
 msgid "Kacheln"
 msgstr "Tiles"
 
@@ -141,14 +135,69 @@ msgstr "OK = Grab"
 msgid "OK = Ablegen"
 msgstr "OK = Drop"
 
-msgid "CH+/- = Seite"
-msgstr "CH+/- = Page"
+msgid "CH+/- Seite %d/%d"
+msgstr "CH+/- Page %d/%d"
 
-msgid "CH+/- = Seite blättern"
-msgstr "CH+/- = Page up/down"
+# Aufnahme-Feature
+msgid "Aufnahme"
+msgstr "Recording"
 
-msgid "Seite %d/%d"
-msgstr "Page %d/%d"
+msgid "Aufnahmen"
+msgstr "Recordings"
+
+msgid "Aufnahme starten"
+msgstr "Start recording"
+
+msgid "Aufnahmedauer wählen"
+msgstr "Choose recording duration"
+
+msgid "30 Minuten"
+msgstr "30 minutes"
+
+msgid "1 Stunde"
+msgstr "1 hour"
+
+msgid "2 Stunden"
+msgstr "2 hours"
+
+msgid "3 Stunden"
+msgstr "3 hours"
+
+msgid "6 Stunden"
+msgstr "6 hours"
+
+msgid "Bis ich stoppe"
+msgstr "Until I stop"
+
+msgid "Eigene Dauer (Minuten) …"
+msgstr "Custom duration (minutes) …"
+
+msgid "Für später planen …"
+msgstr "Schedule for later …"
+
+msgid "Dauer in Minuten eingeben:"
+msgstr "Enter duration in minutes:"
+
+msgid "Ungültige Startzeit"
+msgstr "Invalid start time"
+
+msgid "EPG/INFO = Aufnahmen"
+msgstr "EPG/INFO = Recordings"
+
+msgid "EXIT = Schließen"
+msgstr "EXIT = Close"
+
+msgid "Keine laufende Aufnahme"
+msgstr "No active recording"
+
+msgid "Markierte Aufnahme stoppen"
+msgstr "Stop selected recording"
+
+msgid "unbegrenzt"
+msgstr "unlimited"
+
+msgid "Name und URL erforderlich"
+msgstr "Name and URL required"
 
 # Plugin-Beschreibung
 msgid "Eigene Streams - konfigurierbar per WebIF"
@@ -158,20 +207,20 @@ msgstr "Custom streams - configurable via WebIF"
 msgid "multipart erforderlich"
 msgstr "multipart required"
 
-msgid "Nur PNG-Dateien erlaubt"
-msgstr "PNG files only"
+msgid "Nur PNG/JPG-Dateien erlaubt"
+msgstr "PNG/JPG files only"
 
 msgid "Datei zu groß (max. 2 MB)"
 msgstr "File too large (max. 2 MB)"
 
-msgid "Keine gültige PNG-Datei"
-msgstr "Not a valid PNG file"
+msgid "Keine gültige PNG/JPG-Datei"
+msgstr "Not a valid PNG/JPG file"
 
 msgid "Keine URL"
 msgstr "No URL"
 
-msgid "Download fehlgeschlagen oder keine gültige PNG-Datei"
-msgstr "Download failed or not a valid PNG file"
+msgid "Download fehlgeschlagen oder keine gültige PNG/JPG-Datei"
+msgstr "Download failed or not a valid PNG/JPG file"
 
 msgid "Name erforderlich"
 msgstr "Name required"
@@ -292,8 +341,8 @@ msgstr "No streams in this folder yet."
 msgid "Ordner und alle enthaltenen Streams löschen?"
 msgstr "Delete folder and all contained streams?"
 
-msgid "Nur PNG-Dateien werden unterstützt."
-msgstr "Only PNG files are supported."
+msgid "Nur PNG/JPG-Dateien werden unterstützt."
+msgstr "Only PNG/JPG files are supported."
 
 msgid "Upload fehlgeschlagen: "
 msgstr "Upload failed: "
@@ -301,8 +350,8 @@ msgstr "Upload failed: "
 msgid "Bitte eine URL eingeben"
 msgstr "Please enter a URL"
 
-msgid "URL endet nicht auf .png – trotzdem versuchen?"
-msgstr "URL does not end in .png – try anyway?"
+msgid "URL endet nicht auf .png/.jpg – trotzdem versuchen?"
+msgstr "URL does not end in .png/.jpg – try anyway?"
 
 msgid "Logo-Download fehlgeschlagen: "
 msgstr "Logo download failed: "
@@ -383,5 +432,118 @@ msgstr "User-Agent (optional)"
 msgid "Logo-URL (optional)"
 msgstr "Logo-URL (optional)"
 
-msgid "PNG"
-msgstr "PNG"
+msgid "PNG/JPG"
+msgstr "PNG/JPG"
+
+# Quell-Website (Referer-Proxy)
+msgid "Als Quell-Website ausgeben"
+msgstr "Treat as originating from website"
+
+msgid "Website angeben"
+msgstr "Enter website"
+
+msgid "Quell-Website: "
+msgstr "Source website: "
+
+# Aufnahme-Modal und Aufnahmen-Sektion (WebIF)
+msgid "Schließen"
+msgstr "Close"
+
+msgid "Geplante Aufnahme bearbeiten"
+msgstr "Edit scheduled recording"
+
+msgid "Dauer (Minuten, leer = bis manuell gestoppt):"
+msgstr "Duration (minutes, empty = until stopped manually):"
+
+msgid "Laufende Aufnahmen"
+msgstr "Active recordings"
+
+msgid "Keine laufende Aufnahme."
+msgstr "No active recording."
+
+msgid "Geplante Aufnahmen"
+msgstr "Scheduled recordings"
+
+msgid "Keine geplanten Aufnahmen."
+msgstr "No scheduled recordings."
+
+msgid "Gestartet/geplant wird über das &#9679;-Symbol an einem Stream."
+msgstr "Start/schedule via the &#9679; button on a stream."
+
+msgid "bis gestoppt"
+msgstr "until stopped"
+
+msgid "geplant"
+msgstr "scheduled"
+
+msgid "läuft"
+msgstr "running"
+
+msgid "fertig"
+msgstr "done"
+
+msgid "Fehler"
+msgstr "error"
+
+msgid "abgebrochen"
+msgstr "cancelled"
+
+msgid "30 Min"
+msgstr "30 min"
+
+msgid "1 Std"
+msgstr "1 hr"
+
+msgid "2 Std"
+msgstr "2 hr"
+
+msgid "3 Std"
+msgstr "3 hr"
+
+msgid "6 Std"
+msgstr "6 hr"
+
+msgid "Bis gestoppt"
+msgstr "Until stopped"
+
+msgid "Eigene Dauer (Minuten)"
+msgstr "Custom duration (minutes)"
+
+msgid "Jetzt aufnehmen"
+msgstr "Record now"
+
+msgid "Für später planen"
+msgstr "Schedule for later"
+
+msgid "Timer anlegen"
+msgstr "Create timer"
+
+msgid "Aufnahme: "
+msgstr "Recording: "
+
+msgid "Diese laufende Aufnahme stoppen?"
+msgstr "Stop this active recording?"
+
+msgid "Diesen Aufnahme-Timer löschen?"
+msgstr "Delete this recording timer?"
+
+msgid "Bitte Name und Startzeit angeben."
+msgstr "Please enter name and start time."
+
+msgid "Ungültige Startzeit."
+msgstr "Invalid start time."
+
+msgid "Speichern fehlgeschlagen: "
+msgstr "Save failed: "
+
+msgid "Start fehlgeschlagen: "
+msgstr "Start failed: "
+
+msgid "Bitte eine gültige Dauer in Minuten angeben."
+msgstr "Please enter a valid duration in minutes."
+
+msgid "Bitte Startzeit angeben."
+msgstr "Please enter a start time."
+
+msgid "Anlegen fehlgeschlagen: "
+msgstr "Creation failed: "

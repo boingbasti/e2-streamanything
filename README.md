@@ -8,7 +8,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **Streams und Ordner** – Streams können frei in Ordnern organisiert werden, im Plugin als Stream oder Ordner gekennzeichnet
 - **Kachelansicht** – übersichtliche 4×3-Kachelnavigation mit Logo, Name und Typ-Icon
 - **Listenansicht** – kompakte Listenansicht mit Logo, Name und Typ-Icon; umschaltbar per gelber Taste
-- **Logos** – eigene Logos für Streams und Ordner hochladbar (PNG, max. 2 MB); Logo-URL wird gespeichert und beim Bearbeiten vorausgefüllt
+- **Logos** – eigene Logos für Streams und Ordner hochladbar (PNG oder JPG, max. 2 MB); Logo-URL wird gespeichert und beim Bearbeiten vorausgefüllt
 - **Sortieren** – Einträge per Fernbedienung umsortieren (rote Taste im Plugin)
 - **Stream-Einstellungen** – Player, User-Agent und HLS-Option pro Stream direkt im Plugin änderbar (Menü-Taste)
 - **Streamwechsel während Wiedergabe** – mit CH+/- zum nächsten oder vorherigen Stream in der Liste wechseln
@@ -28,7 +28,10 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - **exteplayer3 / gstplayer**: erzwingt den jeweiligen Player unabhängig von ServiceApp
 - **User-Agent** – pro Stream einstellbarer HTTP-User-Agent (z. B. für streams mit Zugriffsbeschränkung)
 - **Lokaler Playlist Server** – optionaler HLS-Fix pro Stream: lädt das Master-Manifest, wählt die beste Qualitätsstufe und übergibt dem Player eine lokale Playlist; löst Audioprobleme bei bestimmten öffentlich-rechtlichen HLS-Streams
+- **Quell-Website** – optionaler Referer-Proxy pro Stream für HLS-Streams mit CDN-Hotlink-Schutz: leitet alle Anfragen über einen lokalen Proxy mit gesetztem Referer-Header weiter (Auto oder manuelle Angabe)
+- **Live-Aufnahme** – Streams im Hintergrund als HLS aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten
 - **ServiceApp-Auto-Konfiguration** – optimale Einstellungen für Live-Streams werden automatisch gesetzt
+- **M3U-Export** – einzelne Ordner als M3U-Playlist exportieren (Button im WebIF am Ordner)
 - **Backup/Restore** – Stream-Konfiguration exportieren und importieren:
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
   - **Einträge hinzufügen** – Backup wird zu den vorhandenen Einträgen hinzugefügt, Duplikate (gleiche ID) werden übersprungen
@@ -52,7 +55,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.5.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.6.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -104,6 +107,7 @@ Die **Menü-Taste** öffnet bei einem markierten Stream einen eigenen Optionen-S
 | Player | Untermenü: Auto, exteplayer3, GStreamer oder Standard-Player |
 | User-Agent | Untermenü: (keiner), Android/Chrome, Windows/Chrome, iPhone/Safari, VLC |
 | Lokaler Playlist Server | Direkter Toggle EIN/AUS |
+| Quell-Website | Untermenü: AUS, Auto (generischer Referer) oder Website manuell angeben |
 | Löschen | Stream löschen (mit Bestätigungsabfrage) |
 
 Änderungen an Player, User-Agent und HLS-Fix bleiben zunächst ausstehend. **Grüne Taste** speichert, **Rote Taste** oder **EXIT** bricht ab – bei ungespeicherten Änderungen erscheint eine Bestätigungsabfrage.
@@ -171,6 +175,8 @@ EarthCam-URLs (`earthcam.com/...`) werden automatisch erkannt. Die Stream-URL wi
 ## MagentaMusik
 
 MagentaMusik-URLs (`magentamusik.de/...`) werden automatisch erkannt und über die Telekom-eigene API aufgelöst — sowohl Live-Streams während eines Konzerts/Festivals als auch VOD-Aufzeichnungen danach. Es genügt die normale Event-URL der Seite.
+
+Bei **Live-Streams** liefert Audio einen separaten HLS-Track, der ohne Weiteres nicht automatisch gewählt wird (Bild da, aber kein Ton) — hier zusätzlich die Stream-Option **"Lokaler Playlist Server (HLS Audiofix)"** aktivieren. Bei VOD-Aufzeichnungen ist das in der Regel nicht nötig.
 
 ## Lizenz
 

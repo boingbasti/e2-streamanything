@@ -5,6 +5,7 @@ import cgi
 import io
 import json
 import os
+import re
 import threading
 import uuid
 import zipfile
@@ -135,6 +136,36 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_json({"ok": False, "error": str(e)}, 500)
 
+    def _handle_group_export(self, group_id):
+        try:
+            groups = _streams.get_groups()
+            group = None
+            for g in groups:
+                if g.get("type") == "folder" and g.get("id") == group_id:
+                    group = g
+                    break
+            if not group:
+                self.send_response(404)
+                self.end_headers()
+                return
+            streams = _streams.get_group_streams(group_id)
+            lines = ["#EXTM3U"]
+            for s in streams:
+                lines.append("#EXTINF:-1," + s.get("name", ""))
+                lines.append(s.get("url", ""))
+            data = ("\n".join(lines) + "\n").encode("utf-8")
+            safe_name = re.sub(r"[^A-Za-z0-9_\-]+", "_", group.get("name", "playlist")).strip("_") or "playlist"
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/x-mpegurl")
+            self.send_header("Content-Disposition",
+                             'attachment; filename="%s.m3u"' % safe_name)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+
     def _handle_import(self, parsed):
         qs   = parse_qs(parsed.query)
         mode = qs.get("mode", ["merge"])[0]
@@ -153,7 +184,7 @@ class _Handler(BaseHTTPRequestHandler):
             imported_cfg = json.loads(raw)
 
             for name in zf.namelist():
-                if name.startswith("logos/") and name.lower().endswith(".png"):
+                if name.startswith("logos/") and name.lower().endswith((".png", ".jpg", ".jpeg")):
                     basename = os.path.basename(name)
                     if basename:
                         _streams.save_logo_bytes(zf.read(name), basename)
@@ -224,8 +255,25 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(_streams.get_config().get("items", []))
             return
 
+        if path == "/api/recording_timers":
+            self._send_json(_streams.get_recording_timers())
+            return
+
+        if path == "/api/recordings/active":
+            try:
+                import plugin as _plugin
+                self._send_json(_plugin._get_active_recordings_info())
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
         if path == "/api/export":
             self._handle_export()
+            return
+
+        if path.startswith("/api/groups/") and path.endswith("/export"):
+            group_id = path[len("/api/groups/"):-len("/export")]
+            self._handle_group_export(group_id)
             return
 
         self.send_response(404)
@@ -256,8 +304,8 @@ class _Handler(BaseHTTPRequestHandler):
                     )
                     field = form["file"]
                     ext   = os.path.splitext(field.filename)[1].lower()
-                    if ext != ".png":
-                        self._send_json({"ok": False, "error": _("Nur PNG-Dateien erlaubt")}, 400)
+                    if ext not in (".png", ".jpg", ".jpeg"):
+                        self._send_json({"ok": False, "error": _("Nur PNG/JPG-Dateien erlaubt")}, 400)
                         return
                     data = field.file.read()
                     if len(data) > 2 * 1024 * 1024:
@@ -267,7 +315,7 @@ class _Handler(BaseHTTPRequestHandler):
                     if saved:
                         self._send_json({"ok": True, "logo": "logos/" + os.path.basename(saved)})
                     else:
-                        self._send_json({"ok": False, "error": _("Keine gültige PNG-Datei")}, 400)
+                        self._send_json({"ok": False, "error": _("Keine gültige PNG/JPG-Datei")}, 400)
                 except Exception as e:
                     self._send_json({"ok": False, "error": str(e)}, 500)
             else:
@@ -281,7 +329,73 @@ class _Handler(BaseHTTPRequestHandler):
                 if saved:
                     self._send_json({"ok": True, "logo": "logos/" + os.path.basename(saved)})
                 else:
-                    self._send_json({"ok": False, "error": _("Download fehlgeschlagen oder keine gültige PNG-Datei")}, 400)
+                    self._send_json({"ok": False, "error": _("Download fehlgeschlagen oder keine gültige PNG/JPG-Datei")}, 400)
+            return
+
+        # ---- Sofort-Aufnahme starten ----
+        if path == "/api/recordings/start":
+            data       = self._parse_json_body()
+            name       = data.get("name", "").strip()
+            url        = data.get("url", "").strip()
+            user_agent = data.get("user_agent", "")
+            duration   = data.get("duration")
+            if not name or not url:
+                self._send_json({"ok": False, "error": _("Name und URL erforderlich")}, 400)
+                return
+            try:
+                duration_seconds = int(duration) if duration not in (None, "") else None
+            except (TypeError, ValueError):
+                duration_seconds = None
+            try:
+                import plugin as _plugin
+                _plugin._start_recording(
+                    {"name": name, "url": url, "user_agent": user_agent}, duration_seconds)
+                self._send_json({"ok": True})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        # ---- Laufende Aufnahme stoppen ----
+        if path.startswith("/api/recordings/") and path.endswith("/cancel"):
+            rec_id = path[len("/api/recordings/"):-len("/cancel")]
+            try:
+                import plugin as _plugin
+                ok = _plugin._cancel_recording_by_id(rec_id)
+                self._send_json({"ok": ok})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        # ---- Geplante Aufnahme anlegen ----
+        if path == "/api/recording_timers":
+            data       = self._parse_json_body()
+            name       = data.get("name", "").strip()
+            url        = data.get("url", "").strip()
+            user_agent = data.get("user_agent", "")
+            start_time = data.get("start_time")
+            duration   = data.get("duration")
+            if not name:
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
+                return
+            if not url:
+                self._send_json({"ok": False, "error": _("URL erforderlich")}, 400)
+                return
+            try:
+                start_time = int(start_time)
+            except (TypeError, ValueError):
+                self._send_json({"ok": False, "error": _("Ungültige Startzeit")}, 400)
+                return
+            try:
+                duration = int(duration) if duration not in (None, "") else None
+            except (TypeError, ValueError):
+                duration = None
+            timer = _streams.add_recording_timer(name, url, start_time, user_agent, duration)
+            try:
+                import plugin as _plugin
+                _plugin._register_wakeup_timer(timer["id"], timer["name"], timer["start_time"])
+            except Exception:
+                pass
+            self._send_json({"ok": True, "timer": timer})
             return
 
         # ---- Flat: Stream hinzufügen ----
@@ -294,13 +408,14 @@ class _Handler(BaseHTTPRequestHandler):
             user_agent    = data.get("user_agent", "")
             logo_url      = data.get("logo_url", "")
             hls_audio_fix = bool(data.get("hls_audio_fix", False))
+            referer       = data.get("referer", "")
             if not name:
                 self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             if not url:
                 self._send_json({"ok": False, "error": _("URL erforderlich")}, 400)
                 return
-            _streams.add_flat_stream(name, url, logo, player, user_agent, logo_url, hls_audio_fix)
+            _streams.add_flat_stream(name, url, logo, player, user_agent, logo_url, hls_audio_fix, referer)
             self._send_json({"ok": True})
             return
 
@@ -358,13 +473,14 @@ class _Handler(BaseHTTPRequestHandler):
             user_agent    = data.get("user_agent", "")
             logo_url      = data.get("logo_url", "")
             hls_audio_fix = bool(data.get("hls_audio_fix", False))
+            referer       = data.get("referer", "")
             if not name:
                 self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
                 return
             if not url:
                 self._send_json({"ok": False, "error": _("URL erforderlich")}, 400)
                 return
-            _streams.add_group_stream(group_id, name, url, logo, player, user_agent, logo_url, hls_audio_fix)
+            _streams.add_group_stream(group_id, name, url, logo, player, user_agent, logo_url, hls_audio_fix, referer)
             self._send_json({"ok": True})
             return
 
@@ -390,6 +506,37 @@ class _Handler(BaseHTTPRequestHandler):
         parts  = path.split("/")
         data   = self._parse_json_body()
 
+        # PUT /api/recording_timers/<id>
+        if len(parts) == 4 and parts[1] == "api" and parts[2] == "recording_timers":
+            timer_id = parts[3]
+            name = (data.get("name") or "").strip()
+            try:
+                start_time = int(data.get("start_time"))
+            except (TypeError, ValueError):
+                self._send_json({"ok": False, "error": _("Ungültige Startzeit")}, 400)
+                return
+            duration = data.get("duration")
+            try:
+                duration = int(duration) if duration not in (None, "") else None
+            except (TypeError, ValueError):
+                duration = None
+            if not name:
+                self._send_json({"ok": False, "error": _("Name erforderlich")}, 400)
+                return
+            timer = _streams.update_recording_timer(timer_id, name, start_time, duration)
+            if not timer:
+                self.send_response(404)
+                self.end_headers()
+                return
+            try:
+                import plugin as _plugin
+                _plugin._unregister_wakeup_timer(timer_id)
+                _plugin._register_wakeup_timer(timer_id, timer["name"], timer["start_time"])
+            except Exception:
+                pass
+            self._send_json({"ok": True, "timer": timer})
+            return
+
         # PUT /api/streams/<id>
         if len(parts) == 4 and parts[1] == "api" and parts[2] == "streams":
             stream_id = parts[3]
@@ -406,6 +553,7 @@ class _Handler(BaseHTTPRequestHandler):
                 user_agent=data.get("user_agent"),
                 logo_url=data.get("logo_url"),
                 hls_audio_fix=data.get("hls_audio_fix"),
+                referer=data.get("referer"),
             )
             self._send_json({"ok": True})
             return
@@ -443,6 +591,7 @@ class _Handler(BaseHTTPRequestHandler):
                 user_agent=data.get("user_agent"),
                 logo_url=data.get("logo_url"),
                 hls_audio_fix=data.get("hls_audio_fix"),
+                referer=data.get("referer"),
             )
             self._send_json({"ok": True})
             return
@@ -464,6 +613,17 @@ class _Handler(BaseHTTPRequestHandler):
         # DELETE /api/groups/<id>
         if len(parts) == 4 and parts[1] == "api" and parts[2] == "groups":
             _streams.delete_group(parts[3])
+            self._send_json({"ok": True})
+            return
+
+        # DELETE /api/recording_timers/<id>
+        if len(parts) == 4 and parts[1] == "api" and parts[2] == "recording_timers":
+            try:
+                import plugin as _plugin
+                _plugin._unregister_wakeup_timer(parts[3])
+            except Exception:
+                pass
+            _streams.delete_recording_timer(parts[3])
             self._send_json({"ok": True})
             return
 
@@ -533,7 +693,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
 .section h2{font-size:1rem;margin-bottom:14px;color:#aaa;text-transform:uppercase;letter-spacing:.05em}
 .form-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 .form-row input,.form-row select{flex:1;min-width:160px;padding:8px 10px;background:#111;border:1px solid #333;border-radius:6px;color:#eee;font-size:.9rem}
-.form-row input[type=checkbox]{flex:none;min-width:0;padding:0;background:none;border:none;width:auto;margin-right:6px}
+.form-row input[type=checkbox],.form-row input[type=radio]{flex:none;min-width:0;padding:0;background:none;border:none;width:auto;margin-right:4px}
 .form-row input:focus,.form-row select:focus{outline:none;border-color:#cc3d2d}
 .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;white-space:nowrap}
 .btn-primary{background:#cc3d2d;color:#fff}
@@ -608,6 +768,14 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
     <div id="editUaRow" class="form-row"><input id="editUserAgent" placeholder="User-Agent (optional)" list="uaList"></div>
     <p id="editUaHint" class="hint">User-Agent gilt nur bei Player: exteplayer3 (HLS)</p>
     <div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="editHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>
+    <div id="editRefererRow" class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">
+      <label style="white-space:nowrap"><input type="checkbox" id="editRefererProxy" onchange="document.getElementById('editRefererSub').style.display=this.checked?'':'none'"> Als Quell-Website ausgeben</label>
+      <div id="editRefererSub" style="display:none;padding-left:20px;margin-top:4px">
+        <label><input type="radio" name="editRefererMode" value="auto" checked onchange="_refModeChange('editRefererCustom',this)"> Auto</label>
+        <label style="margin-left:12px"><input type="radio" name="editRefererMode" value="custom" onchange="_refModeChange('editRefererCustom',this)"> Website angeben</label>
+        <input id="editRefererCustom" placeholder="https://..." style="display:none;width:100%;margin-top:4px">
+      </div>
+    </div>
     <div class="logo-section">
       <img id="editLogoPreview" class="logo-preview" src="" style="display:none">
       <div>
@@ -617,9 +785,9 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
           <button class="btn btn-edit btn-sm" id="editInheritFolderBtn" style="display:none" onclick="inheritFolderLogoEdit()">Von Ordner</button>
         </div>
         <div class="form-row">
-          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('editLogoFile').click()">__FI_BTN__</button><span id="editLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="editLogoFile" accept=".png" style="display:none" onchange="uploadLogo('edit');document.getElementById('editLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
+          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('editLogoFile').click()">__FI_BTN__</button><span id="editLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="editLogoFile" accept=".png,.jpg,.jpeg" style="display:none" onchange="uploadLogo('edit');document.getElementById('editLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
         </div>
-        <p class="hint">PNG</p>
+        <p class="hint">PNG/JPG</p>
       </div>
     </div>
     <div class="modal-actions">
@@ -642,9 +810,9 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
           <button class="btn btn-edit btn-sm" onclick="fetchLogoFromUrl('folderEdit')">Laden</button>
         </div>
         <div class="form-row">
-          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('folderEditLogoFile').click()">__FI_BTN__</button><span id="folderEditLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="folderEditLogoFile" accept=".png" style="display:none" onchange="uploadLogo('folderEdit');document.getElementById('folderEditLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
+          <span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById('folderEditLogoFile').click()">__FI_BTN__</button><span id="folderEditLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="folderEditLogoFile" accept=".png,.jpg,.jpeg" style="display:none" onchange="uploadLogo('folderEdit');document.getElementById('folderEditLogoFile_nm').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute('data-no-file')"></span>
         </div>
-        <p class="hint">PNG</p>
+        <p class="hint">PNG/JPG</p>
       </div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;color:#aaa;margin-bottom:12px">
@@ -654,6 +822,31 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
     <div class="modal-actions">
       <button class="btn btn-edit" onclick="closeModal('folderEditModal')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveFolderEdit()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aufnahme-Modal -->
+<div class="modal-overlay" id="recordModal">
+  <div class="modal" style="max-width:480px">
+    <h3 id="recordModalTitle">Aufnahme</h3>
+    <div id="recordModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-edit" onclick="closeModal('recordModal')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Timer-Bearbeiten-Modal -->
+<div class="modal-overlay" id="editTimerModal">
+  <div class="modal" style="max-width:420px">
+    <h3>Geplante Aufnahme bearbeiten</h3>
+    <div class="form-row"><input id="editTimerName" placeholder="Name"></div>
+    <div class="form-row"><label>Start: <input type="datetime-local" id="editTimerStart"></label></div>
+    <div class="form-row"><label>Dauer (Minuten, leer = bis manuell gestoppt): <input type="number" id="editTimerDuration" min="1"></label></div>
+    <div class="modal-actions">
+      <button class="btn btn-edit" onclick="closeModal('editTimerModal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveEditTimer()">Speichern</button>
     </div>
   </div>
 </div>
@@ -747,6 +940,8 @@ function resetFileInput(id){
 
 var state = {
   items: [],
+  recordingTimers: [],
+  activeRecordings: [],
   addType: 'stream',
   pendingLogo: {edit: '', folderEdit: '', add: ''},
   pendingLogoUrl: {edit: '', folderEdit: '', add: ''},
@@ -780,10 +975,32 @@ function load(){
     state.items = Array.isArray(items) ? items : [];
     render();
   });
+  loadRecordings();
 }
 
+function loadRecordings(){
+  xhr('GET','/api/recording_timers',null,function(timers){
+    state.recordingTimers = Array.isArray(timers) ? timers : [];
+    renderRecordingsInPlace();
+  });
+  xhr('GET','/api/recordings/active',null,function(recs){
+    state.activeRecordings = Array.isArray(recs) ? recs : [];
+    renderRecordingsInPlace();
+  });
+}
+
+function renderRecordingsInPlace(){
+  // Aktualisiert nur die Aufnahmen-Sektion, nicht die komplette Seite -
+  // sonst wuerden offene Eingabefelder/Modals beim periodischen Poll
+  // (alle 3s) verloren gehen.
+  var el = document.getElementById('recordingsSection');
+  if(el) el.outerHTML = renderRecordingsSection();
+}
+
+setInterval(loadRecordings, 3000);
+
 function render(){
-  document.getElementById('app').innerHTML = renderAddForm() + renderItemList() + renderBackupSection();
+  document.getElementById('app').innerHTML = renderRecordingsSection() + renderAddForm() + renderItemList() + renderBackupSection();
 }
 
 function playerSelectHtml(id, val){
@@ -822,14 +1039,20 @@ function renderAddForm(){
     h += '<div class="form-row"><input id="newUserAgent" placeholder="User-Agent (optional)" list="uaList"></div>';
     h += '<p class="hint">User-Agent gilt nur bei Player: exteplayer3 (HLS)</p>';
     h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="newHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
+    h += '<div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">';
+    h += '<label style="white-space:nowrap"><input type="checkbox" id="newRefererProxy" onchange="document.getElementById(\'newRefererSub\').style.display=this.checked?\'\':\' none\'"> Als Quell-Website ausgeben</label>';
+    h += '<div id="newRefererSub" style="display:none;padding-left:20px;margin-top:4px">';
+    h += '<label><input type="radio" name="newRefererMode" value="auto" checked onchange="_refModeChange(\'newRefererCustom\',this)"> Auto</label>';
+    h += '<label style="margin-left:12px"><input type="radio" name="newRefererMode" value="custom" onchange="_refModeChange(\'newRefererCustom\',this)"> Website angeben</label>';
+    h += '<input id="newRefererCustom" placeholder="https://..." style="display:none;width:100%;margin-top:4px"></div></div>';
   }
   h += '<div class="logo-section">';
   h += '<img id="newLogoPreview" class="logo-preview" src="" style="display:none">';
   h += '<div>';
   h += '<div class="form-row"><input id="newLogoUrl" placeholder="Logo-URL (optional)">';
   h += '<button class="btn btn-edit btn-sm" onclick="fetchLogoFromUrl(\'add\')">Laden</button></div>';
-  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'newLogoFile\').click()">__FI_BTN__</button><span id="newLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="newLogoFile" accept=".png" style="display:none" onchange="uploadLogo(\'add\');document.getElementById(\'newLogoFile_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
-  h += '<p class="hint">PNG</p>';
+  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'newLogoFile\').click()">__FI_BTN__</button><span id="newLogoFile_nm" class="fi-name">__FI_NONE__</span><input type="file" id="newLogoFile" accept=".png,.jpg,.jpeg" style="display:none" onchange="uploadLogo(\'add\');document.getElementById(\'newLogoFile_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
+  h += '<p class="hint">PNG/JPG</p>';
   h += '</div></div>';
   h += '<button class="btn btn-primary" onclick="addItem()">'+(isStream?'Stream hinzufügen':'Ordner hinzufügen')+'</button>';
   h += '</div>';
@@ -874,6 +1097,7 @@ function renderStreamItem(s, i){
   h += '<div class="item-url">'+esc(s.url||'')+'</div>';
   h += '</div>';
   h += '<div class="item-actions">';
+  h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditStream(\''+s.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteStream(\''+s.id+'\')">&#10005;</button>';
   h += '</div></li>';
@@ -905,6 +1129,7 @@ function renderFolderItem(g, gi){
   else h += '<div class="item-logo-placeholder"></div>';
   h += '<div class="item-name" style="font-weight:600">'+esc(g.name)+'<span class="badge badge-folder">Ordner</span></div>';
   h += '<div class="item-actions" style="margin-left:auto">';
+  h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="Exportieren">&#8595;</a>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditFolder(\''+g.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+g.id+'\')">&#10005;</button>';
   h += '</div></div>';
@@ -926,6 +1151,7 @@ function renderFolderItem(g, gi){
       h += '<div class="item-url">'+esc(s.url||'')+'</div>';
       h += '</div>';
       h += '<div class="item-actions">';
+      h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="openEditFolderStream(\''+g.id+'\',\''+s.id+'\')">&#9998;</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="deleteFolderStream(\''+g.id+'\',\''+s.id+'\')">&#10005;</button>';
       h += '</div></li>';
@@ -943,14 +1169,20 @@ function renderFolderItem(g, gi){
   h += '<div class="form-row">' + playerSelectHtml('fs_player_'+g.id,'') + '</div>';
   h += '<div class="form-row"><input id="fs_ua_'+g.id+'" placeholder="User-Agent (optional)" list="uaList"></div>';
   h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="fs_hls_'+g.id+'"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
+  h += '<div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">';
+  h += '<label style="white-space:nowrap"><input type="checkbox" id="fs_rp_'+g.id+'" onchange="document.getElementById(\'fs_rsub_'+g.id+'\').style.display=this.checked?\'\':\' none\'"> Als Quell-Website ausgeben</label>';
+  h += '<div id="fs_rsub_'+g.id+'" style="display:none;padding-left:20px;margin-top:4px">';
+  h += '<label><input type="radio" name="fs_rmode_'+g.id+'" value="auto" checked onchange="_refModeChange(\'fs_rc_'+g.id+'\',this)"> Auto</label>';
+  h += '<label style="margin-left:12px"><input type="radio" name="fs_rmode_'+g.id+'" value="custom" onchange="_refModeChange(\'fs_rc_'+g.id+'\',this)"> Website angeben</label>';
+  h += '<input id="fs_rc_'+g.id+'" placeholder="https://..." style="display:none;width:100%;margin-top:4px"></div></div>';
   h += '<div class="logo-section">';
   h += '<img id="fs_logo_prev_'+g.id+'" class="logo-preview" src="" style="display:none">';
   h += '<div>';
   h += '<div class="form-row"><input id="fs_logo_url_'+g.id+'" placeholder="Logo-URL (optional)">';
   h += '<button class="btn btn-edit btn-sm" onclick="fetchLogoTo(\'fs_logo_url_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\')">Laden</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="inheritFolderLogo(\''+g.id+'\')">Von Ordner</button></div>';
-  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'fs_logo_file_'+g.id+'\').click()">__FI_BTN__</button><span id="fs_logo_file_'+g.id+'_nm" class="fi-name">__FI_NONE__</span><input type="file" id="fs_logo_file_'+g.id+'" accept=".png" style="display:none" onchange="uploadLogoTo(\'fs_logo_file_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\');document.getElementById(\'fs_logo_file_'+g.id+'_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
-  h += '<p class="hint">PNG</p>';
+  h += '<div class="form-row"><span class="fi-wrap" data-no-file="__FI_NONE__"><button type="button" class="btn btn-edit btn-sm" onclick="document.getElementById(\'fs_logo_file_'+g.id+'\').click()">__FI_BTN__</button><span id="fs_logo_file_'+g.id+'_nm" class="fi-name">__FI_NONE__</span><input type="file" id="fs_logo_file_'+g.id+'" accept=".png,.jpg,.jpeg" style="display:none" onchange="uploadLogoTo(\'fs_logo_file_'+g.id+'\',\'fs_logo_prev_'+g.id+'\',\'fsadd_'+g.id+'\');document.getElementById(\'fs_logo_file_'+g.id+'_nm\').textContent=this.files.length?this.files[0].name:this.parentNode.getAttribute(\'data-no-file\')"></span></div>';
+  h += '<p class="hint">PNG/JPG</p>';
   h += '</div></div>';
   h += '<button class="btn btn-primary btn-sm" onclick="addFolderStream(\''+g.id+'\')">Stream hinzufügen</button>';
   h += '</li>';
@@ -971,9 +1203,10 @@ function addStream(){
   var player    = document.getElementById('newPlayer').value;
   var ua        = document.getElementById('newUserAgent').value.trim();
   var hlsFix    = document.getElementById('newHlsAudioFix').checked;
+  var referer   = _refRead('newRefererProxy','newRefererMode','newRefererCustom');
   if(!name){alert('Name erforderlich');return;}
   if(!url){alert('URL erforderlich');return;}
-  xhr('POST','/api/streams',{name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix},function(){
+  xhr('POST','/api/streams',{name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix,referer:referer},function(){
     state.pendingLogo['add']=''; state.pendingLogoUrl['add']=''; load();
   });
 }
@@ -1017,6 +1250,7 @@ function openEditStream(id){
   document.getElementById('editPlayer').value=s.player||'';
   document.getElementById('editUserAgent').value=s.user_agent||'';
   document.getElementById('editHlsAudioFix').checked=!!s.hls_audio_fix;
+  _refFill('editRefererProxy','editRefererSub','editRefererMode','editRefererCustom',s.referer||'');
   document.getElementById('editLogoUrl').value=s.logo_url||'';
   state.pendingLogo['edit']=s.logo||'';
   state.pendingLogoUrl['edit']=s.logo_url||'';
@@ -1038,6 +1272,7 @@ function openEditFolderStream(gid,sid){
   document.getElementById('editPlayer').value=s.player||'';
   document.getElementById('editUserAgent').value=s.user_agent||'';
   document.getElementById('editHlsAudioFix').checked=!!s.hls_audio_fix;
+  _refFill('editRefererProxy','editRefererSub','editRefererMode','editRefererCustom',s.referer||'');
   document.getElementById('editLogoUrl').value=s.logo_url||'';
   state.pendingLogo['edit']=s.logo||'';
   state.pendingLogoUrl['edit']=s.logo_url||'';
@@ -1055,12 +1290,13 @@ function saveEdit(){
   var player=document.getElementById('editPlayer').value;
   var ua=document.getElementById('editUserAgent').value.trim();
   var hlsFix=document.getElementById('editHlsAudioFix').checked;
+  var referer=_refRead('editRefererProxy','editRefererMode','editRefererCustom');
   if(!name){alert('Name erforderlich');return;}
   if(!url){alert('URL erforderlich');return;}
   var path=state.editGroupId
     ? '/api/groups/'+state.editGroupId+'/streams/'+state.editId
     : '/api/streams/'+state.editId;
-  var body={name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix};
+  var body={name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix,referer:referer};
   xhr('PUT',path,body,function(){closeModal('editModal');load();});
 }
 
@@ -1070,6 +1306,28 @@ function _showStreamFields(show){
   document.getElementById('editPlayerRow').style.display=d;
   document.getElementById('editUaRow').style.display=d;
   document.getElementById('editUaHint').style.display=d;
+  document.getElementById('editRefererRow').style.display=d;
+}
+function _refModeChange(inputId,radio){
+  document.getElementById(inputId).style.display=radio.value==='custom'?'':'none';
+}
+function _refFill(proxy,sub,modeRadioName,customId,val){
+  document.getElementById(proxy).checked=!!val;
+  document.getElementById(sub).style.display=val?'':'none';
+  if(val&&val!=='auto'){
+    document.querySelector('input[name="'+modeRadioName+'"][value="custom"]').checked=true;
+    document.getElementById(customId).style.display='';
+    document.getElementById(customId).value=val;
+  }else{
+    document.querySelector('input[name="'+modeRadioName+'"][value="auto"]').checked=true;
+    document.getElementById(customId).style.display='none';
+    document.getElementById(customId).value='';
+  }
+}
+function _refRead(proxy,modeRadioName,customId){
+  if(!document.getElementById(proxy)||!document.getElementById(proxy).checked)return'';
+  var m=document.querySelector('input[name="'+modeRadioName+'"]:checked');
+  return(m&&m.value==='custom')?(document.getElementById(customId).value.trim()||'auto'):'auto';
 }
 
 // ---- Bearbeiten: Ordner ----
@@ -1142,11 +1400,12 @@ function addFolderStream(gid){
   var player   = document.getElementById('fs_player_'+gid).value;
   var ua       = document.getElementById('fs_ua_'+gid).value.trim();
   var hlsFix   = document.getElementById('fs_hls_'+gid).checked;
+  var referer  = _refRead('fs_rp_'+gid,'fs_rmode_'+gid,'fs_rc_'+gid);
   var logo     = state.pendingLogo['fsadd_'+gid] || '';
   var logo_url = state.pendingLogoUrl['fsadd_'+gid] || '';
   if(!name){alert('Name erforderlich');return;}
   if(!url){alert('URL erforderlich');return;}
-  xhr('POST','/api/groups/'+gid+'/streams',{name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix},function(){
+  xhr('POST','/api/groups/'+gid+'/streams',{name:name,url:url,logo:logo,logo_url:logo_url,player:player,user_agent:ua,hls_audio_fix:hlsFix,referer:referer},function(){
     state.pendingLogo['fsadd_'+gid]=''; state.pendingLogoUrl['fsadd_'+gid]=''; load();
   });
 }
@@ -1156,8 +1415,9 @@ function addFolderStream(gid){
 function uploadLogoTo(fileInputId, previewId, stateKey){
   var file=document.getElementById(fileInputId).files[0];
   if(!file)return;
-  if(file.name.toLowerCase().slice(-4)!=='.png'){
-    alert('Nur PNG-Dateien werden unterstützt.');
+  var _ext=file.name.toLowerCase().split('.').pop();
+  if(_ext!=='png'&&_ext!=='jpg'&&_ext!=='jpeg'){
+    alert('Nur PNG/JPG-Dateien werden unterstützt.');
     document.getElementById(fileInputId).value='';
     return;
   }
@@ -1179,7 +1439,7 @@ function uploadLogoTo(fileInputId, previewId, stateKey){
 function fetchLogoTo(urlInputId, previewId, stateKey){
   var url=document.getElementById(urlInputId).value.trim();
   if(!url){alert('Bitte eine URL eingeben');return;}
-  if(url.split('?')[0].toLowerCase().indexOf('.png')===-1 && !confirm('URL endet nicht auf .png – trotzdem versuchen?')) return;
+  var _u=url.split('?')[0].toLowerCase();if(_u.indexOf('.png')===-1&&_u.indexOf('.jpg')===-1&&_u.indexOf('.jpeg')===-1&&!confirm('URL endet nicht auf .png/.jpg – trotzdem versuchen?')) return;
   xhr('POST','/api/logo',{url:url},function(res){
     if(res&&res.ok){
       state.pendingLogo[stateKey]=res.logo;
@@ -1238,6 +1498,209 @@ function _findAnyItem(id){
 function _findInStreams(arr,id){
   for(var i=0;i<arr.length;i++) if(arr[i].id===id) return arr[i];
   return null;
+}
+
+// ---- Aufnahmen ----
+
+function fmtTimerDate(ts){
+  var d = new Date(ts * 1000);
+  function p(n){ return (n<10?'0':'')+n; }
+  return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+function fmtTimerDuration(sec){
+  if(!sec) return 'bis gestoppt';
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+  return h ? (h+'h '+m+'min') : (m+' Min');
+}
+
+var TIMER_STATUS_LABELS = {
+  pending: 'geplant', running: 'läuft', done: 'fertig', error: 'Fehler', cancelled: 'abgebrochen'
+};
+
+function fmtElapsed(sec){
+  sec = sec||0;
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  function p(n){ return (n<10?'0':'')+n; }
+  return h ? (h+':'+p(m)+':'+p(s)) : (m+':'+p(s));
+}
+
+function fmtBytes(b){
+  b = b||0;
+  if(b >= 1024*1024*1024) return (b/1024/1024/1024).toFixed(1)+' GB';
+  if(b >= 1024*1024) return Math.round(b/1024/1024)+' MB';
+  if(b >= 1024) return Math.round(b/1024)+' KB';
+  return b+' B';
+}
+
+function renderRecordingsSection(){
+  var h = '<div class="section" id="recordingsSection"><h2>Aufnahmen</h2>';
+  h += '<p class="hint">Gestartet/geplant wird über das &#9679;-Symbol an einem Stream.</p>';
+
+  h += '<h3 style="font-size:.95rem;color:#999;margin:12px 0 6px;font-weight:600">Laufende Aufnahmen</h3>';
+  if(state.activeRecordings.length === 0){
+    h += '<p class="empty">Keine laufende Aufnahme.</p>';
+  } else {
+    h += '<ul class="item-list">';
+    for(var i=0;i<state.activeRecordings.length;i++){
+      var r = state.activeRecordings[i];
+      h += '<li class="item"><div style="flex:1;overflow:hidden">';
+      h += '<div class="item-name" style="font-size:.9rem">'+esc(r.title)+'</div>';
+      h += '<div class="item-url">'+fmtElapsed(r.elapsed)+' / '+(r.duration?fmtTimerDuration(r.duration):'unbegrenzt')+' &middot; '+fmtBytes(r.downloaded)+'</div>';
+      h += '</div><div class="item-actions">';
+      h += '<button class="btn btn-danger btn-sm" onclick="stopActiveRecording(\''+r.id+'\')" title="Stoppen">&#9632;</button>';
+      h += '</div></li>';
+    }
+    h += '</ul>';
+  }
+
+  h += '<h3 style="font-size:.95rem;color:#999;margin:16px 0 6px;font-weight:600">Geplante Aufnahmen</h3>';
+  if(state.recordingTimers.length === 0){
+    h += '<p class="empty">Keine geplanten Aufnahmen.</p>';
+  } else {
+    h += '<ul class="item-list">';
+    for(var j=0;j<state.recordingTimers.length;j++){
+      var t = state.recordingTimers[j];
+      h += '<li class="item"><div style="flex:1;overflow:hidden">';
+      h += '<div class="item-name" style="font-size:.9rem">'+esc(t.name)+'</div>';
+      h += '<div class="item-url">'+fmtTimerDate(t.start_time)+' &middot; '+fmtTimerDuration(t.duration)+' &middot; '+(TIMER_STATUS_LABELS[t.status]||t.status)+'</div>';
+      h += '</div><div class="item-actions">';
+      if(t.status === 'pending'){
+        h += '<button class="btn btn-edit btn-sm" onclick="openEditTimerModal(\''+t.id+'\')" title="Bearbeiten">&#9998;</button>';
+      }
+      h += '<button class="btn btn-danger btn-sm" onclick="deleteRecordingTimer(\''+t.id+'\')">&#10005;</button>';
+      h += '</div></li>';
+    }
+    h += '</ul>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function stopActiveRecording(id){
+  if(!confirm('Diese laufende Aufnahme stoppen?')) return;
+  xhr('POST', '/api/recordings/' + id + '/cancel', null, function(res){
+    loadRecordings();
+  });
+}
+
+function deleteRecordingTimer(id){
+  if(!confirm('Diesen Aufnahme-Timer löschen?')) return;
+  xhr('DELETE', '/api/recording_timers/' + id, null, function(res){
+    loadRecordings();
+  });
+}
+
+var _editTimerId = null;
+
+function openEditTimerModal(id){
+  var t = null;
+  for(var i=0;i<state.recordingTimers.length;i++) if(state.recordingTimers[i].id===id) t = state.recordingTimers[i];
+  if(!t) return;
+  _editTimerId = id;
+  document.getElementById('editTimerName').value = t.name;
+  var d = new Date(t.start_time * 1000);
+  function p(n){ return (n<10?'0':'')+n; }
+  document.getElementById('editTimerStart').value =
+    d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  document.getElementById('editTimerDuration').value = t.duration ? Math.round(t.duration/60) : '';
+  document.getElementById('editTimerModal').classList.add('open');
+}
+
+function saveEditTimer(){
+  var name     = document.getElementById('editTimerName').value.trim();
+  var startVal = document.getElementById('editTimerStart').value;
+  var durVal   = document.getElementById('editTimerDuration').value;
+  if(!name || !startVal){ alert('Bitte Name und Startzeit angeben.'); return; }
+  var startTs = Math.floor(new Date(startVal).getTime() / 1000);
+  if(isNaN(startTs)){ alert('Ungültige Startzeit.'); return; }
+  xhr('PUT', '/api/recording_timers/' + _editTimerId, {
+    name: name, start_time: startTs, duration: durVal ? parseInt(durVal, 10) * 60 : null
+  }, function(res){
+    if(res && res.ok){
+      closeModal('editTimerModal');
+      loadRecordings();
+    } else {
+      alert('Speichern fehlgeschlagen: ' + (res && res.error || 'Unbekannter Fehler'));
+    }
+  });
+}
+
+// ---- Aufnahme-Modal (pro Stream über das &#9679;-Symbol) ----
+
+var _recordTarget = null;
+
+function openRecordModal(id){
+  var s = _findAnyItem(id);
+  if(!s) return;
+  _recordTarget = {name: s.name, url: s.url, user_agent: s.user_agent || ''};
+  document.getElementById('recordModalTitle').textContent = 'Aufnahme: ' + s.name;
+  renderRecordModalBody();
+  document.getElementById('recordModal').classList.add('open');
+}
+
+function renderRecordModalBody(){
+  var presets = [['30 Min',30],['1 Std',60],['2 Std',120],['3 Std',180],['6 Std',360]];
+  var h = '<div style="margin-bottom:8px;font-weight:600">Jetzt aufnehmen</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
+  for(var i=0;i<presets.length;i++){
+    h += '<button class="btn btn-edit btn-sm" onclick="startInstantRecording('+presets[i][1]+')">'+presets[i][0]+'</button>';
+  }
+  h += '<button class="btn btn-edit btn-sm" onclick="startInstantRecording(null)">Bis gestoppt</button>';
+  h += '</div>';
+  h += '<div class="form-row"><input type="number" id="recordCustomMinutes" placeholder="Eigene Dauer (Minuten)" style="width:180px;display:inline-block;margin-right:8px">';
+  h += '<button class="btn btn-edit btn-sm" onclick="startInstantRecordingCustom()">Start</button></div>';
+
+  h += '<div style="border-top:1px solid #2a2a2a;margin:20px 0 12px"></div>';
+  h += '<div style="margin-bottom:8px;font-weight:600">Für später planen</div>';
+  h += '<div class="form-row"><label>Start: <input type="datetime-local" id="recordScheduleStart"></label></div>';
+  h += '<div class="form-row"><label>Dauer (Minuten, leer = bis manuell gestoppt): <input type="number" id="recordScheduleDuration" min="1" placeholder="z.B. 180"></label></div>';
+  h += '<button class="btn btn-primary" onclick="scheduleRecordingFromModal()">Timer anlegen</button>';
+
+  document.getElementById('recordModalBody').innerHTML = h;
+}
+
+function startInstantRecording(minutes){
+  if(!_recordTarget) return;
+  xhr('POST', '/api/recordings/start', {
+    name: _recordTarget.name, url: _recordTarget.url, user_agent: _recordTarget.user_agent,
+    duration: minutes ? minutes * 60 : null
+  }, function(res){
+    if(res && res.ok){
+      closeModal('recordModal');
+      loadRecordings();
+    } else {
+      alert('Start fehlgeschlagen: ' + (res && res.error || 'Unbekannter Fehler'));
+    }
+  });
+}
+
+function startInstantRecordingCustom(){
+  var val = document.getElementById('recordCustomMinutes').value;
+  var minutes = parseInt(val, 10);
+  if(!minutes || minutes <= 0){ alert('Bitte eine gültige Dauer in Minuten angeben.'); return; }
+  startInstantRecording(minutes);
+}
+
+function scheduleRecordingFromModal(){
+  if(!_recordTarget) return;
+  var startVal = document.getElementById('recordScheduleStart').value;
+  var durVal   = document.getElementById('recordScheduleDuration').value;
+  if(!startVal){ alert('Bitte Startzeit angeben.'); return; }
+  var startTs = Math.floor(new Date(startVal).getTime() / 1000);
+  if(isNaN(startTs)){ alert('Ungültige Startzeit.'); return; }
+
+  xhr('POST', '/api/recording_timers', {
+    name: _recordTarget.name, url: _recordTarget.url, user_agent: _recordTarget.user_agent,
+    start_time: startTs, duration: durVal ? parseInt(durVal, 10) * 60 : null
+  }, function(res){
+    if(res && res.ok){
+      closeModal('recordModal');
+      loadRecordings();
+    } else {
+      alert('Anlegen fehlgeschlagen: ' + (res && res.error || 'Unbekannter Fehler'));
+    }
+  });
 }
 
 // ---- Backup / Import ----
@@ -1451,7 +1914,7 @@ function confirmM3UImport(){
   }
 
   function addStream(s, logo, cb){
-    var body={name:s.name, url:s.url, logo:logo, logo_url:s.logo_url||'', player:player, user_agent:ua, hls_audio_fix:hlsFix};
+    var body={name:s.name, url:s.url, logo:logo, logo_url:s.logo_url||'', player:player, user_agent:ua, hls_audio_fix:hlsFix, referer:s.referer||''};
     var path=groupId ? '/api/groups/'+groupId+'/streams' : '/api/streams';
     xhr('POST', path, body, cb);
   }
@@ -1764,6 +2227,10 @@ function closeModal(id){
         "Lokaler Playlist Server (HLS Audiofix)",
         _("Lokaler Playlist Server (HLS Audiofix)"))
     _html = _html.replace(
+        "Als Quell-Website ausgeben",
+        _("Als Quell-Website ausgeben"))
+    _html = _html.replace("> Website angeben", ">" + _("Website angeben"))
+    _html = _html.replace(
         "Bitte zuerst eine Backup-Datei (.zip) ausw\xe4hlen.",
         _("Bitte zuerst eine Backup-Datei (.zip) ausw\xe4hlen."))
     _html = _html.replace(
@@ -1779,8 +2246,8 @@ function closeModal(id){
         "Fehler beim Erstellen des Ordners.",
         _("Fehler beim Erstellen des Ordners."))
     _html = _html.replace(
-        "Nur PNG-Dateien werden unterst\xfctzt.",
-        _("Nur PNG-Dateien werden unterst\xfctzt."))
+        "Nur PNG/JPG-Dateien werden unterst\xfctzt.",
+        _("Nur PNG/JPG-Dateien werden unterst\xfctzt."))
     _html = _html.replace(
         "Logo-Download fehlgeschlagen: ",
         _("Logo-Download fehlgeschlagen: "))
@@ -1791,8 +2258,8 @@ function closeModal(id){
         "Bitte eine URL eingeben",
         _("Bitte eine URL eingeben"))
     _html = _html.replace(
-        "URL endet nicht auf .png – trotzdem versuchen?",
-        _("URL endet nicht auf .png – trotzdem versuchen?"))
+        "URL endet nicht auf .png/.jpg – trotzdem versuchen?",
+        _("URL endet nicht auf .png/.jpg – trotzdem versuchen?"))
     _html = _html.replace(
         "Keine Streams in der Datei gefunden.",
         _("Keine Streams in der Datei gefunden."))
@@ -1906,7 +2373,7 @@ function closeModal(id){
                           'placeholder="' + _("User-Agent (optional)") + '"')
     _html = _html.replace('placeholder="Logo-URL (optional)"',
                           'placeholder="' + _("Logo-URL (optional)") + '"')
-    _html = _html.replace('>PNG<', '>' + _("PNG") + '<')
+    _html = _html.replace('>PNG/JPG<', '>' + _("PNG/JPG") + '<')
     _html = _html.replace('placeholder="Ordner-Name"',
                           'placeholder="' + _("Ordner-Name") + '"')
     _html = _html.replace(" bereits vorhanden, \xfcbersprungen.",
@@ -1924,5 +2391,53 @@ function closeModal(id){
     _html = _html.replace("' importiert.'", "' " + _("importiert.") + "'")
     _html = _html.replace("' ausgew\xe4hlt'", "' " + _("ausgew\xe4hlt") + "'")
     _html = _html.replace("&#8592; Zur\xfcck", "&#8592; " + _("Zur\xfcck"))
+
+    # Aufnahme-Modal (statisches HTML)
+    _html = _html.replace(">Schlie\xdfen</button>", ">" + _("Schlie\xdfen") + "</button>")
+    _html = _html.replace(">Geplante Aufnahme bearbeiten</h3>", ">" + _("Geplante Aufnahme bearbeiten") + "</h3>")
+    _html = _html.replace(
+        "Dauer (Minuten, leer = bis manuell gestoppt):",
+        _("Dauer (Minuten, leer = bis manuell gestoppt):"))
+
+    # Aufnahmen-Sektion (JS-generiert)
+    _html = _html.replace("<h2>Aufnahmen</h2>", "<h2>" + _("Aufnahmen") + "</h2>")
+    _html = _html.replace(
+        "Gestartet/geplant wird \xfcber das &#9679;-Symbol an einem Stream.",
+        _("Gestartet/geplant wird \xfcber das &#9679;-Symbol an einem Stream."))
+    _html = _html.replace(">Laufende Aufnahmen<", ">" + _("Laufende Aufnahmen") + "<")
+    _html = _html.replace("Keine laufende Aufnahme.", _("Keine laufende Aufnahme."))
+    _html = _html.replace(">Geplante Aufnahmen<", ">" + _("Geplante Aufnahmen") + "<")
+    _html = _html.replace("Keine geplanten Aufnahmen.", _("Keine geplanten Aufnahmen."))
+    _html = _html.replace("'unbegrenzt'", "'" + _("unbegrenzt") + "'")
+    _html = _html.replace("'bis gestoppt'", "'" + _("bis gestoppt") + "'")
+
+    # Timer-Status-Labels (ganzes Objekt ersetzen, vermeidet Substring-Kollisionen)
+    _html = _html.replace(
+        "pending: 'geplant', running: 'l\xe4uft', done: 'fertig', error: 'Fehler', cancelled: 'abgebrochen'",
+        "pending: '" + _("geplant") + "', running: '" + _("l\xe4uft") + "', done: '" + _("fertig") + "', error: '" + _("Fehler") + "', cancelled: '" + _("abgebrochen") + "'")
+
+    # Aufnahme-Modal-Body (JS-generiert via renderRecordModalBody)
+    _html = _html.replace(">30 Min<", ">" + _("30 Min") + "<")
+    _html = _html.replace(">1 Std<", ">" + _("1 Std") + "<")
+    _html = _html.replace(">2 Std<", ">" + _("2 Std") + "<")
+    _html = _html.replace(">3 Std<", ">" + _("3 Std") + "<")
+    _html = _html.replace(">6 Std<", ">" + _("6 Std") + "<")
+    _html = _html.replace(">Bis gestoppt<", ">" + _("Bis gestoppt") + "<")
+    _html = _html.replace('placeholder="Eigene Dauer (Minuten)"', 'placeholder="' + _("Eigene Dauer (Minuten)") + '"')
+    _html = _html.replace(">Jetzt aufnehmen</div>", ">" + _("Jetzt aufnehmen") + "</div>")
+    _html = _html.replace(">F\xfcr sp\xe4ter planen</div>", ">" + _("F\xfcr sp\xe4ter planen") + "</div>")
+    _html = _html.replace(">Timer anlegen</button>", ">" + _("Timer anlegen") + "</button>")
+    _html = _html.replace("'Aufnahme: '", "'" + _("Aufnahme: ") + "'")
+
+    # Aufnahme-Alerts und Confirms
+    _html = _html.replace("'Diese laufende Aufnahme stoppen?'", "'" + _("Diese laufende Aufnahme stoppen?") + "'")
+    _html = _html.replace("'Diesen Aufnahme-Timer l\xf6schen?'", "'" + _("Diesen Aufnahme-Timer l\xf6schen?") + "'")
+    _html = _html.replace("'Bitte Name und Startzeit angeben.'", "'" + _("Bitte Name und Startzeit angeben.") + "'")
+    _html = _html.replace("'Ungl\xfcltige Startzeit.'", "'" + _("Ungl\xfcltige Startzeit.") + "'")
+    _html = _html.replace("'Speichern fehlgeschlagen: '", "'" + _("Speichern fehlgeschlagen: ") + "'")
+    _html = _html.replace("'Start fehlgeschlagen: '", "'" + _("Start fehlgeschlagen: ") + "'")
+    _html = _html.replace("'Bitte eine g\xfcltige Dauer in Minuten angeben.'", "'" + _("Bitte eine g\xfcltige Dauer in Minuten angeben.") + "'")
+    _html = _html.replace("'Bitte Startzeit angeben.'", "'" + _("Bitte Startzeit angeben.") + "'")
+    _html = _html.replace("'Anlegen fehlgeschlagen: '", "'" + _("Anlegen fehlgeschlagen: ") + "'")
 
     return _html

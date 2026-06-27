@@ -14,8 +14,9 @@ CONFIG_FILE = "/etc/enigma2/streamanything.json"
 LOGO_DIR    = os.path.join(os.path.dirname(__file__), "logos")
 
 _DEFAULTS = {
-    "webif_port": 8090,
-    "items":      [],
+    "webif_port":       8090,
+    "items":            [],
+    "recording_timers": [],
 }
 
 
@@ -140,7 +141,7 @@ def get_flat_streams():
     return get_config().get("items", [])
 
 
-def add_flat_stream(name, url, logo="", player="", user_agent="", logo_url="", hls_audio_fix=False):
+def add_flat_stream(name, url, logo="", player="", user_agent="", logo_url="", hls_audio_fix=False, referer=""):
     cfg = get_config()
     cfg.setdefault("items", []).append({
         "id":            str(uuid.uuid4()),
@@ -152,12 +153,13 @@ def add_flat_stream(name, url, logo="", player="", user_agent="", logo_url="", h
         "player":        player,
         "user_agent":    user_agent,
         "hls_audio_fix": bool(hls_audio_fix),
+        "referer":       referer,
     })
     save_config(cfg)
 
 
 def update_flat_stream(stream_id, name=None, url=None, logo=None, player=None,
-                       user_agent=None, logo_url=None, hls_audio_fix=None):
+                       user_agent=None, logo_url=None, hls_audio_fix=None, referer=None):
     cfg = get_config()
     for item in cfg.get("items", []):
         if item.get("id") == stream_id:
@@ -168,6 +170,7 @@ def update_flat_stream(stream_id, name=None, url=None, logo=None, player=None,
             if player        is not None: item["player"]        = player
             if user_agent    is not None: item["user_agent"]    = user_agent
             if hls_audio_fix is not None: item["hls_audio_fix"] = bool(hls_audio_fix)
+            if referer       is not None: item["referer"]       = referer
             break
     save_config(cfg)
 
@@ -241,7 +244,7 @@ def get_group_streams(group_id):
     return []
 
 
-def add_group_stream(group_id, name, url, logo="", player="", user_agent="", logo_url="", hls_audio_fix=False):
+def add_group_stream(group_id, name, url, logo="", player="", user_agent="", logo_url="", hls_audio_fix=False, referer=""):
     cfg = get_config()
     for grp in cfg.get("items", []):
         if grp.get("id") == group_id:
@@ -254,13 +257,14 @@ def add_group_stream(group_id, name, url, logo="", player="", user_agent="", log
                 "player":        player,
                 "user_agent":    user_agent,
                 "hls_audio_fix": bool(hls_audio_fix),
+                "referer":       referer,
             })
             break
     save_config(cfg)
 
 
 def update_group_stream(group_id, stream_id, name=None, url=None, logo=None, player=None,
-                        user_agent=None, logo_url=None, hls_audio_fix=None):
+                        user_agent=None, logo_url=None, hls_audio_fix=None, referer=None):
     cfg = get_config()
     for grp in cfg.get("items", []):
         if grp.get("id") == group_id:
@@ -273,6 +277,7 @@ def update_group_stream(group_id, stream_id, name=None, url=None, logo=None, pla
                     if player        is not None: s["player"]        = player
                     if user_agent    is not None: s["user_agent"]    = user_agent
                     if hls_audio_fix is not None: s["hls_audio_fix"] = bool(hls_audio_fix)
+                    if referer       is not None: s["referer"]       = referer
                     break
             break
     save_config(cfg)
@@ -298,6 +303,66 @@ def reorder_group_streams(group_id, id_list):
 
 
 # ------------------------------------------------------------------
+# Geplante Live-Aufnahmen (Timer)
+# Jeder Timer ist ein Snapshot (Name/URL/User-Agent werden beim Anlegen
+# kopiert, nicht live aus dem Stream-Eintrag nachgeschlagen) - bleibt so
+# auch funktionsfaehig, wenn der urspruengliche Stream-Eintrag spaeter
+# bearbeitet oder geloescht wird.
+# Timer: {"id", "name", "url", "user_agent", "start_time" (Unix-Sekunden),
+#         "duration" (Sekunden oder None = bis manuell gestoppt), "status"}
+# status: "pending" | "running" | "done" | "error" | "cancelled"
+# ------------------------------------------------------------------
+
+def get_recording_timers():
+    return get_config().get("recording_timers", [])
+
+
+def add_recording_timer(name, url, start_time, user_agent="", duration=None):
+    cfg = get_config()
+    timer = {
+        "id":         str(uuid.uuid4()),
+        "name":       name,
+        "url":        url,
+        "user_agent": user_agent,
+        "start_time": int(start_time),
+        "duration":   int(duration) if duration else None,
+        "status":     "pending",
+    }
+    cfg.setdefault("recording_timers", []).append(timer)
+    save_config(cfg)
+    return timer
+
+
+def update_recording_timer_status(timer_id, status):
+    cfg = get_config()
+    for t in cfg.get("recording_timers", []):
+        if t.get("id") == timer_id:
+            t["status"] = status
+            break
+    save_config(cfg)
+
+
+def update_recording_timer(timer_id, name, start_time, duration):
+    cfg = get_config()
+    timer = None
+    for t in cfg.get("recording_timers", []):
+        if t.get("id") == timer_id:
+            t["name"]       = name
+            t["start_time"] = int(start_time)
+            t["duration"]   = int(duration) if duration else None
+            timer = t
+            break
+    save_config(cfg)
+    return timer
+
+
+def delete_recording_timer(timer_id):
+    cfg = get_config()
+    cfg["recording_timers"] = [t for t in cfg.get("recording_timers", []) if t.get("id") != timer_id]
+    save_config(cfg)
+
+
+# ------------------------------------------------------------------
 # Logo-Hilfsfunktionen
 # ------------------------------------------------------------------
 
@@ -308,7 +373,7 @@ def logo_path_for(filename):
 def cleanup_orphaned_logos():
     import re
     uuid_re = re.compile(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$'
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg)$'
     )
     try:
         cfg = _load_raw()
@@ -379,11 +444,17 @@ def _ensure_rgba_png(data):
 
 
 def save_logo_bytes(data, filename=None):
-    if not data or data[:4] != b'\x89PNG':
+    if not data:
         return None
-    data = _ensure_rgba_png(data)
+    is_jpeg = data[:2] == b'\xff\xd8'
+    is_png  = data[:4] == b'\x89PNG'
+    if not is_jpeg and not is_png:
+        return None
+    if is_png:
+        data = _ensure_rgba_png(data)
     if not filename:
-        filename = hashlib.sha1(data).hexdigest() + ".png"
+        ext      = ".jpg" if is_jpeg else ".png"
+        filename = hashlib.sha1(data).hexdigest() + ext
     path = logo_path_for(filename)
     try:
         if not os.path.exists(path):
