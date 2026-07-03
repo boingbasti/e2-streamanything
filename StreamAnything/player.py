@@ -39,6 +39,8 @@ class SAStreamPlayer(MoviePlayer):
         self._prefer_best_quality = prefer_best_quality
         self._closed               = False
         self._switching            = False
+        self._target_stream_index  = stream_index
+        self._switch_token         = 0
         self.onClose.append(self.__mark_closed)
         if len(self._streams) > 1:
             from Components.ActionMap import ActionMap
@@ -56,16 +58,18 @@ class SAStreamPlayer(MoviePlayer):
 
     def _switch_stream(self, direction):
         _dbg("_switch_stream called direction=%d" % direction)
-        if self._switching:
-            return
-        new_idx = self._stream_index + direction
-        while 0 <= new_idx < len(self._streams):
-            if self._streams[new_idx].get("type") != "folder":
+        
+        # Calculate next target stream index immediately in main thread
+        target_idx = getattr(self, "_target_stream_index", self._stream_index) + direction
+        while 0 <= target_idx < len(self._streams):
+            if self._streams[target_idx].get("type") != "folder":
                 break
-            new_idx += direction
-        if new_idx < 0 or new_idx >= len(self._streams):
+            target_idx += direction
+        if target_idx < 0 or target_idx >= len(self._streams):
             return
-        item       = self._streams[new_idx]
+            
+        self._target_stream_index = target_idx
+        item       = self._streams[target_idx]
         url        = item.get("url", "")
         name       = item.get("name", "Stream")
         player     = item.get("player", "")
@@ -74,19 +78,20 @@ class SAStreamPlayer(MoviePlayer):
         referer    = item.get("referer", "")
         if not url:
             return
-        # Resolver (YouTube/Feratel/...) und resolve_stream_url() (HLS-Audio-
-        # Fix/Best-Quality) machen blockierende HTTP-Anfragen, deren DNS-
-        # Aufloesung von timeout=8 nicht zuverlaessig abgedeckt wird - im
-        # Hintergrundthread, sonst friert bei einem Netzwerk-Haenger der
-        # komplette Enigma2-Prozess (inkl. WebIF, gleicher GIL) ein.
-        import threading
+            
+        # Increment token so only the LATEST zap thread's results are applied
+        self._switch_token = getattr(self, "_switch_token", 0) + 1
+        current_token = self._switch_token
+        
         self._switching = True
+        
+        import threading
         t = threading.Thread(target=self.__switch_bg,
-                             args=(new_idx, url, name, player, user_agent, hls_fix, referer))
+                             args=(target_idx, url, name, player, user_agent, hls_fix, referer, current_token))
         t.daemon = True
         t.start()
 
-    def __switch_bg(self, new_idx, url, name, player, user_agent, hls_fix, referer=""):
+    def __switch_bg(self, new_idx, url, name, player, user_agent, hls_fix, referer="", token=0):
         try:
             import youtube as _yt
             if _yt.is_youtube(url):
@@ -123,6 +128,9 @@ class SAStreamPlayer(MoviePlayer):
         url_str, user_agent = resolve_stream_url(url, user_agent, self._prefer_best_quality, hls_fix, referer)
 
         def _apply():
+            if getattr(self, "_switch_token", 0) != token:
+                _dbg("apply skipped: newer zap token active (token=%d active=%d)" % (token, self._switch_token))
+                return
             self._switching = False
             if self._closed:
                 return
@@ -143,9 +151,17 @@ class SAStreamPlayer(MoviePlayer):
     def doEofInternal(self, playing):
         _dbg("doEofInternal called playing=%s streams=%d showing_offline=%s" % (
             playing, len(self._streams), getattr(self, "_showing_offline", False)))
+        if getattr(self, "_showing_offline", False):
+            _dbg("doEofInternal: Already showing offline stream, closing player to prevent loop/deadlock")
+            self.close()
+            return
         if len(self._streams) > 1:
             self._showing_offline = True
-            self.session.nav.playService(_offline_ref())
+            try:
+                from twisted.internet import reactor
+                reactor.callLater(0.5, self.session.nav.playService, _offline_ref())
+            except Exception:
+                self.session.nav.playService(_offline_ref())
             return
         self.close()
 
@@ -284,6 +300,7 @@ def _build_local_playlist(master_url, user_agent=""):
                 pass
 
         server = HTTPServer(("127.0.0.1", 0), _Handler)
+        server.timeout = 5.0
         port = server.server_address[1]
         t = threading.Thread(target=lambda: (server.handle_request(), server.server_close()))
         t.daemon = True
