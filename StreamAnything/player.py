@@ -481,41 +481,86 @@ def _configure_serviceapp_for_live():
         opts = config.plugins.serviceapp.options[key]
         ext3 = config.plugins.serviceapp.exteplayer3[key]
 
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER as has_new_serviceapp
+        except ImportError:
+            has_new_serviceapp = False
+
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_HLS_QUALITY_SELECT as has_quality_select
+        except ImportError:
+            has_quality_select = False
+
         if not ext3.downmix.value:
             ext3.downmix.value = True; ext3.downmix.save()
 
         if _has_new_exteplayer3():
-            # v181+: exteplayer3 parst Master-Playlist selbst → HLS-Explorer deaktivieren
+            # v181+: exteplayer3 parst Master-Playlist selbst → HLS-Explorer deaktivieren, kein ABR-Stutter
             if opts.hls_explorer.value:
                 opts.hls_explorer.value = False; opts.hls_explorer.save()
-            if not opts.autoselect_stream.value:
-                opts.autoselect_stream.value = True; opts.autoselect_stream.save()
+            if opts.autoselect_stream.value:
+                opts.autoselect_stream.value = False; opts.autoselect_stream.save()
         else:
-            # Alte exteplayer3 (Feed): HLS-Explorer an, autoselect an, AAC SW-Decode an
+            # Alte exteplayer3: HLS-Explorer an, autoselect aus, AAC SW-Decode an
             if not opts.hls_explorer.value:
                 opts.hls_explorer.value = True; opts.hls_explorer.save()
-            if not opts.autoselect_stream.value:
-                opts.autoselect_stream.value = True; opts.autoselect_stream.save()
+            if opts.autoselect_stream.value:
+                opts.autoselect_stream.value = False; opts.autoselect_stream.save()
             if not ext3.aac_swdecoding.value:
                 ext3.aac_swdecoding.value = True; ext3.aac_swdecoding.save()
 
+        if has_new_serviceapp and hasattr(opts, "hls_audio_filter"):
+            if not opts.hls_audio_filter.value:
+                opts.hls_audio_filter.value = True; opts.hls_audio_filter.save()
+
+        if has_quality_select and hasattr(ext3, "hls_quality_mode"):
+            if ext3.hls_quality_mode.value != "highest":
+                ext3.hls_quality_mode.value = "highest"; ext3.hls_quality_mode.save()
+        if has_quality_select and hasattr(ext3, "hls_audio_default_only"):
+            if not ext3.hls_audio_default_only.value:
+                ext3.hls_audio_default_only.value = True; ext3.hls_audio_default_only.save()
+
         # v181 erwartet '-a 0|1|2|3', altes serviceapp.so generiert '-a' ohne Wert → hängt
         aac_sw = False if _has_new_exteplayer3() else ext3.aac_swdecoding.value
-        setExtEplayer3Settings(
-            OPTIONS_SERVICEEXTEPLAYER3,
-            aac_sw,
-            ext3.dts_swdecoding.value,
-            ext3.wma_swdecoding.value,
-            ext3.lpcm_injecion.value,
-            ext3.downmix.value
-        )
-        setServiceAppSettings(
-            OPTIONS_SERVICEEXTEPLAYER3,
-            opts.hls_explorer.value,
-            opts.autoselect_stream.value,
-            opts.connection_speed_kb.value,
-            opts.autoturnon_subtitles.value
-        )
+        if has_quality_select:
+            hls_qm = {"auto": 0, "lowest": 1, "highest": 2}.get(ext3.hls_quality_mode.value, 0)
+            setExtEplayer3Settings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                aac_sw,
+                ext3.dts_swdecoding.value,
+                ext3.wma_swdecoding.value,
+                ext3.lpcm_injecion.value,
+                ext3.downmix.value,
+                hls_qm,
+                ext3.hls_audio_default_only.value
+            )
+        else:
+            setExtEplayer3Settings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                aac_sw,
+                ext3.dts_swdecoding.value,
+                ext3.wma_swdecoding.value,
+                ext3.lpcm_injecion.value,
+                ext3.downmix.value
+            )
+
+        if has_new_serviceapp and hasattr(opts, "hls_audio_filter"):
+            setServiceAppSettings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                opts.hls_explorer.value,
+                opts.autoselect_stream.value,
+                opts.connection_speed_kb.value,
+                opts.autoturnon_subtitles.value,
+                opts.hls_audio_filter.value
+            )
+        else:
+            setServiceAppSettings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                opts.hls_explorer.value,
+                opts.autoselect_stream.value,
+                opts.connection_speed_kb.value,
+                opts.autoturnon_subtitles.value
+            )
     except Exception:
         pass
 
@@ -530,6 +575,23 @@ def resolve_stream_url(stream_url, user_agent="", prefer_best_quality=True, hls_
     url_str = stream_url.decode("utf-8", "replace") if isinstance(stream_url, bytes) else stream_url
     if "ard-mcdn.de" in url_str:
         url_str = url_str.replace("https://", "http://", 1)
+
+    try:
+        from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER as has_new_serviceapp
+    except ImportError:
+        has_new_serviceapp = False
+
+    if has_new_serviceapp:
+        if referer:
+            if referer == "auto":
+                referer = "https://www.ard.de/"
+            _dbg("[player] native referer used: %s" % referer)
+            sep = "&" if "|" in url_str else "|"
+            url_str = url_str + sep + "Referer=" + referer
+        if prefer_best_quality and not hls_audio_fix:
+            url_str = _resolve_hls_best_variant(url_str, user_agent)
+        return url_str, user_agent
+
     if referer:
         if referer == "auto":
             referer = "https://www.ard.de/"

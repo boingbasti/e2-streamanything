@@ -21,7 +21,12 @@ try:
 except ImportError:
     _LoadPixmap = None
 
-PLUGIN_VERSION = "1.6.1"
+try:
+    import xml.etree.ElementTree as _ET
+    _meta = _ET.parse(os.path.join(os.path.dirname(__file__), "meta.xml"))
+    PLUGIN_VERSION = _meta.findtext("version") or "?"
+except Exception:
+    PLUGIN_VERSION = "?"
 
 _pixmap_cache = {}
 
@@ -109,8 +114,8 @@ def _get_settings():
 
 
 _PORT_OPTIONS = [8080, 8088, 8090, 8181, 8888, 9000]
-_LANG_CYCLE   = ["auto", "de", "en"]
-_LANG_LABELS  = {"auto": "Auto", "de": "Deutsch", "en": "English"}
+_LANG_CYCLE   = ["auto", "de", "en", "pl"]
+_LANG_LABELS  = {"auto": "Auto", "de": "Deutsch", "en": "English", "pl": "Polski"}
 _SETTINGS_DEFAULTS = {
     "wrap_lr":                  True,
     "prefer_best_quality":      True,
@@ -159,6 +164,9 @@ def _resolve_special_url(url, prefer_bq):
     return url
 
 
+_active_play_thread_running = False
+
+
 def _play_item(session, item, idx, items):
     # Startet das Abspielen eines Streams im Hintergrundthread. Sowohl die
     # standortspezifischen Resolver als auch resolve_stream_url() (HLS-
@@ -167,9 +175,14 @@ def _play_item(session, item, idx, items):
     # dem ActionMap-Tastendruck-Handler ("OK") aufgerufen wuerde das bei
     # einem Netzwerk-Haenger den kompletten Enigma2-Prozess (inkl. WebIF,
     # gleicher GIL) einfrieren.
+    global _active_play_thread_running
+    if _active_play_thread_running:
+        _dbg("[StreamAnything] Already starting a stream, ignoring OK press.")
+        return
     url = item.get("url", "")
     if not url:
         return
+    _active_play_thread_running = True
     import threading
     t = threading.Thread(target=_play_item_bg, args=(session, item, idx, items, url))
     t.daemon = True
@@ -177,6 +190,7 @@ def _play_item(session, item, idx, items):
 
 
 def _play_item_bg(session, item, idx, items, url):
+    global _active_play_thread_running
     name       = item.get("name", "Stream")
     player     = item.get("player", "")
     user_agent = item.get("user_agent", "")
@@ -184,21 +198,27 @@ def _play_item_bg(session, item, idx, items, url):
     referer    = item.get("referer", "")
     prefer_bq  = _get_setting("prefer_best_quality", True)
 
-    url = _resolve_special_url(url, prefer_bq)
-    url_str, user_agent = resolve_stream_url(url, user_agent, prefer_bq, hls_fix, referer)
-
-    def _apply():
-        play_resolved_stream(session, url_str, title=name, is_live=True,
-                             player=player, user_agent=user_agent,
-                             autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
-                             prefer_best_quality=prefer_bq,
-                             streams=items, stream_index=idx)
-
     try:
-        from twisted.internet import reactor
-        reactor.callFromThread(_apply)
-    except Exception:
-        _apply()
+        url = _resolve_special_url(url, prefer_bq)
+        url_str, user_agent = resolve_stream_url(url, user_agent, prefer_bq, hls_fix, referer)
+
+        def _apply():
+            global _active_play_thread_running
+            _active_play_thread_running = False
+            play_resolved_stream(session, url_str, title=name, is_live=True,
+                                 player=player, user_agent=user_agent,
+                                 autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
+                                 prefer_best_quality=prefer_bq,
+                                 streams=items, stream_index=idx)
+
+        try:
+            from twisted.internet import reactor
+            reactor.callFromThread(_apply)
+        except Exception:
+            _apply()
+    except Exception as e:
+        _dbg("[StreamAnything] Error resolving stream url: %s" % e)
+        _active_play_thread_running = False
 
 
 # ------------------------------------------------------------------
@@ -211,6 +231,33 @@ RECORDING_DIR = "/media/hdd/movie/StreamAnything"
 
 _active_recordings = []
 _recordings_lock    = threading.Lock()
+
+
+def _write_meta(filepath, title, duration_secs=0):
+    try:
+        import time
+        if isinstance(filepath, bytes):
+            meta_path = filepath + b".meta"
+        else:
+            meta_path = filepath + ".meta"
+        if isinstance(title, bytes):
+            title = title.decode("utf-8", "replace")
+        pts_len = int(duration_secs * 90000)
+        lines = [
+            u"1:0:0:0:0:0:0:0:0:0:",
+            title,
+            u"",
+            str(int(time.time())),
+            u"",
+            str(pts_len),
+            u"0",
+            u"",
+            u"0",
+        ]
+        with open(meta_path, "wb") as f:
+            f.write(u"\n".join(lines).encode("utf-8"))
+    except Exception:
+        pass
 
 
 def _get_active_recordings():
@@ -284,6 +331,12 @@ def _on_recording_finished(rec, *args):
         _dbg("Aufnahme-Fehler: %s - %s" % (rec.title, args[0]))
     else:
         _dbg("Aufnahme fertig: %s -> %s" % (rec.title, rec.filepath))
+        try:
+            import time
+            dur = int(time.time() - rec._started_at) if rec._started_at else 0
+        except Exception:
+            dur = 0
+        _write_meta(rec.filepath, rec.title, dur)
 
 
 def _cancel_recording(rec):

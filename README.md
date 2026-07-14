@@ -36,7 +36,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
   - **Einträge hinzufügen** – Backup wird zu den vorhandenen Einträgen hinzugefügt, Duplikate (gleiche ID) werden übersprungen
 - **WebIF** – vollständige Verwaltung über den Browser, erreichbar unter `http://<Box-IP>:8090`
-- **Mehrsprachig** – Oberfläche (Plugin und WebIF) auf Deutsch oder Englisch; automatisch nach Box-Systemsprache oder manuell in den Einstellungen wählbar
+- **Mehrsprachig** – Oberfläche (Plugin und WebIF) auf Deutsch, Englisch oder Polnisch; automatisch nach Box-Systemsprache oder manuell in den Einstellungen wählbar
 
 ## Voraussetzungen
 
@@ -55,7 +55,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.6.1_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.6.2_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -132,7 +132,7 @@ Die **Menü-Taste** auf einem Ordner öffnet eine Bestätigungsabfrage zum Lösc
 | WebIF im Hintergrund | Ein | WebIF beim Starten des Plugins automatisch im Hintergrund starten |
 | WebIF Port | 8090 | Port des WebIF (wählbar: 8080, 8088, 8090, 8181, 8888, 9000) |
 | Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV, EarthCam, MagentaMusik) |
-| Sprache | Auto | Oberflächensprache von Plugin und WebIF: Auto (Box-Systemsprache), Deutsch oder Englisch |
+| Sprache | Auto | Oberflächensprache von Plugin und WebIF: Auto (Box-Systemsprache), Deutsch, Englisch oder Polnisch |
 
 #### Streamwechsel während der Wiedergabe
 
@@ -177,6 +177,10 @@ EarthCam-URLs (`earthcam.com/...`) werden automatisch erkannt. Die Stream-URL wi
 MagentaMusik-URLs (`magentamusik.de/...`) werden automatisch erkannt und über die Telekom-eigene API aufgelöst — sowohl Live-Streams während eines Konzerts/Festivals als auch VOD-Aufzeichnungen danach. Es genügt die normale Event-URL der Seite.
 
 Bei **Live-Streams** liefert Audio einen separaten HLS-Track, der ohne Weiteres nicht automatisch gewählt wird (Bild da, aber kein Ton) — hier zusätzlich die Stream-Option **"Lokaler Playlist Server (HLS Audiofix)"** aktivieren. Bei VOD-Aufzeichnungen ist das in der Regel nicht nötig.
+
+## Übersetzungen
+
+- **Polnisch** – beigetragen von paps
 
 ## Lizenz
 

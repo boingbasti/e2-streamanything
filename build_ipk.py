@@ -6,7 +6,6 @@ import tarfile
 import io
 
 PLUGIN_NAME  = "enigma2-plugin-extensions-streamanything"
-VERSION      = "1.6.1"
 ARCHITECTURE = "all"
 MAINTAINER   = "saufsoldat"
 HOMEPAGE     = "https://github.com/boingbasti/e2-streamanything"
@@ -15,6 +14,10 @@ INSTALL_PATH = "/usr/lib/enigma2/python/Plugins/Extensions/StreamAnything"
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_SRC  = os.path.join(SCRIPT_DIR, "StreamAnything")
+
+import xml.etree.ElementTree as _ET
+VERSION = _ET.parse(os.path.join(SCRIPT_DIR, "StreamAnything", "meta.xml")).findtext("version") or "unknown"
+
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, f"{PLUGIN_NAME}_{VERSION}_{ARCHITECTURE}.ipk")
 
 # Logos die zum Plugin gehoeren und bei Updates ersetzt werden duerfen.

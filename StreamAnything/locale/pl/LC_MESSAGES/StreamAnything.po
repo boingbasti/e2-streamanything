@@ -1,0 +1,756 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: StreamAnything v1.6.0\n"
+"POT-Creation-Date: 2026-06-27 09:47+0200\n"
+"PO-Revision-Date: \n"
+"Last-Translator: paps\n"
+"Language-Team: PaPs\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.9\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: plugin.py:101
+msgid "Links/Rechts zum Blättern"
+msgstr "Lewo/Prawo, aby przewijać"
+
+#: plugin.py:102
+msgid "Höchste Qualität bevorzugen"
+msgstr "Preferuj najwyższą jakość"
+
+#: plugin.py:103
+msgid "ServiceApp auto-konfigurieren"
+msgstr "Automatyczna konfiguracja ServiceApp"
+
+#: plugin.py:104
+msgid "WebIF im Hintergrund"
+msgstr "WebIF w tle"
+
+#: plugin.py:105
+msgid "WebIF Port"
+msgstr "Port WebIF"
+
+#: plugin.py:106
+msgid "Debug-Log"
+msgstr "Dziennik debugowania"
+
+#: plugin.py:107
+msgid "Sprache"
+msgstr "Język"
+
+#: plugin.py:500 webif.py:2403
+msgid "Aufnahmen"
+msgstr "Nagrania"
+
+#: plugin.py:502
+msgid "Markierte Aufnahme stoppen"
+msgstr "Zatrzymaj zaznaczone nagranie"
+
+#: plugin.py:503
+msgid "EXIT = Schließen"
+msgstr "EXIT = Zamknij"
+
+#: plugin.py:552
+msgid "Keine laufende Aufnahme"
+msgstr "Brak trwającego nagrania"
+
+#: plugin.py:558 webif.py:2411
+msgid "unbegrenzt"
+msgstr "nieograniczony"
+
+#: plugin.py:904 plugin.py:1124
+msgid "(keiner)"
+msgstr "(brak)"
+
+#: plugin.py:918
+msgid "Ja"
+msgstr "Tak"
+
+#: plugin.py:918
+msgid "Nein"
+msgstr "NIE"
+
+#: plugin.py:1007
+msgid "OK = Auswählen"
+msgstr "OK = Wybierz"
+
+#: plugin.py:1009 plugin.py:1319 plugin.py:1353 webif.py:2354
+msgid "Speichern"
+msgstr "Zapisz"
+
+#: plugin.py:1011 plugin.py:1320 plugin.py:1354 webif.py:2353
+msgid "Abbrechen"
+msgstr "Anuluj"
+
+#: plugin.py:1087
+msgid "Ohne Speichern beenden?"
+msgstr "Zakończyć bez zapisywania?"
+
+#: plugin.py:1113 plugin.py:1126 plugin.py:1133 plugin.py:1185 plugin.py:1202
+msgid "Auto"
+msgstr "Auto"
+
+#: plugin.py:1116 plugin.py:1188
+msgid "Standard"
+msgstr "Domyślnie"
+
+#: plugin.py:1130 plugin.py:1135 plugin.py:1201 plugin.py:1359
+msgid "AUS"
+msgstr "WYŁĄCZONE"
+
+#: plugin.py:1133
+msgid "Player:     "
+msgstr "Odtwarzacz:     "
+
+#: plugin.py:1134
+msgid "User-Agent: "
+msgstr "User-Agent: "
+
+#: plugin.py:1135
+msgid "Lok. Playlist Server: "
+msgstr "Lokalny serwer listy odtwarzania: "
+
+#: plugin.py:1135 plugin.py:1359
+msgid "EIN"
+msgstr "WŁĄCZONE"
+
+#: plugin.py:1136
+msgid "Quell-Website: "
+msgstr "Strona źródłowa: "
+
+#: plugin.py:1137
+msgid "Aufnahme starten"
+msgstr "Rozpocznij nagrywanie"
+
+#: plugin.py:1138
+msgid "Löschen"
+msgstr "Usuń"
+
+#: plugin.py:1170 plugin.py:1206 webif.py:2231
+msgid "Als Quell-Website ausgeben"
+msgstr "Wyświetl jako stronę źródłową"
+
+#: plugin.py:1191
+msgid "Player wählen"
+msgstr "Wybierz odtwarzacz"
+
+#: plugin.py:1195
+msgid "User-Agent wählen"
+msgstr "Wybierz agenta użytkownika"
+
+#: plugin.py:1203 webif.py:2232
+msgid "Website angeben"
+msgstr "Podaj stronę"
+
+#: plugin.py:1210 webif.py:2316
+msgid "Stream löschen?"
+msgstr "Usunąć strumień?"
+
+#: plugin.py:1221
+msgid "30 Minuten"
+msgstr "30 minut"
+
+#: plugin.py:1222
+msgid "1 Stunde"
+msgstr "1 godz."
+
+#: plugin.py:1223
+msgid "2 Stunden"
+msgstr "2 godz."
+
+#: plugin.py:1224
+msgid "3 Stunden"
+msgstr "3 godz."
+
+#: plugin.py:1225
+msgid "6 Stunden"
+msgstr "6 godz."
+
+#: plugin.py:1226
+msgid "Bis ich stoppe"
+msgstr "Do czasu zatrzymania"
+
+#: plugin.py:1229
+msgid "Eigene Dauer (Minuten) …"
+msgstr "Czas trwania (minuty) …"
+
+#: plugin.py:1230
+msgid "Für später planen …"
+msgstr "Programowanie timera..."
+
+#: plugin.py:1248
+msgid "Dauer in Minuten eingeben:"
+msgstr "Wprowadź czas trwania w minutach:"
+
+#: plugin.py:1255
+msgid "Aufnahmedauer wählen"
+msgstr "Wybierz czas trwania nagrania"
+
+#: plugin.py:1312 plugin.py:1351 plugin.py:1795 plugin.py:2534
+msgid "Einstellungen"
+msgstr "Ustawienia"
+
+#: plugin.py:1318 plugin.py:1352
+msgid "OK = Ändern"
+msgstr "OK = Zmień"
+
+#: plugin.py:1411
+msgid "WebIF Port wählen"
+msgstr "Wybierz port WebIF"
+
+#: plugin.py:1443
+msgid "Einstellungen ohne Speichern verlassen?"
+msgstr "Wyjść z ustawień bez zapisywania?"
+
+#: plugin.py:1551 plugin.py:2299
+msgid "EPG/INFO = Aufnahmen"
+msgstr "EPG/INFO = Nagrania"
+
+#: plugin.py:1589 plugin.py:2342
+msgid "Sortierung verwerfen?"
+msgstr "Odrzucić sortowanie?"
+
+#: plugin.py:1653 plugin.py:2392
+#, python-format
+msgid "CH+/- Seite %d/%d"
+msgstr "CH+/- Strona %d/%d"
+
+#: plugin.py:1794 plugin.py:2533
+msgid "Sortieren"
+msgstr "Sortowanie"
+
+#: plugin.py:1796 plugin.py:2536
+msgid "Kacheln"
+msgstr "Kafelki"
+
+#: plugin.py:1796 plugin.py:2536
+msgid "Liste"
+msgstr "Lista"
+
+#: plugin.py:1798 plugin.py:2537
+msgid "MENU = Bearbeiten"
+msgstr "MENU = Edycja"
+
+#: plugin.py:1800 plugin.py:2539
+msgid "Aufnahme"
+msgstr "Nagraj"
+
+#: plugin.py:1804 plugin.py:1811 plugin.py:2543 plugin.py:2550
+msgid "Fertig"
+msgstr "Gotowe"
+
+#: plugin.py:1805 plugin.py:1812 plugin.py:2544 plugin.py:2551
+msgid "Rückgängig"
+msgstr "Cofnij"
+
+#: plugin.py:1806 plugin.py:2545
+msgid "OK = Greifen"
+msgstr "OK = Przechwyć"
+
+#: plugin.py:1813 plugin.py:2552
+msgid "OK = Ablegen"
+msgstr "OK = Odrzuć"
+
+#: plugin.py:1897
+msgid "Ordner und alle Streams löschen?"
+msgstr "Usunąć folder i wszystkie strumienie?"
+
+#: plugin.py:2980
+msgid "Eigene Streams - konfigurierbar per WebIF"
+msgstr "Własne strumienie - konfigurowalne poprzez WebIF"
+
+#: webif.py:174
+msgid "multipart erforderlich"
+msgstr "wymagane są dane multipart"
+
+#: webif.py:308
+msgid "Nur PNG/JPG-Dateien erlaubt"
+msgstr "Dozwolone są tylko pliki PNG/JPG"
+
+#: webif.py:312
+msgid "Datei zu groß (max. 2 MB)"
+msgstr "Plik jest za duży (maks. 2 MB)"
+
+#: webif.py:318
+msgid "Keine gültige PNG/JPG-Datei"
+msgstr "Nieprawidłowy plik PNG/JPG"
+
+#: webif.py:326
+msgid "Keine URL"
+msgstr "Brak adresu URL"
+
+#: webif.py:332
+msgid "Download fehlgeschlagen oder keine gültige PNG/JPG-Datei"
+msgstr "Pobieranie nie powiodło się, lub nie jest to prawidłowy plik PNG/JPG"
+
+#: webif.py:343
+msgid "Name und URL erforderlich"
+msgstr "Wymagane jest podanie nazwy i adresu URL"
+
+#: webif.py:378 webif.py:413 webif.py:450 webif.py:478 webif.py:524
+#: webif.py:545 webif.py:566 webif.py:583 webif.py:2337
+msgid "Name erforderlich"
+msgstr "Wymagana nazwa"
+
+#: webif.py:381 webif.py:416 webif.py:481 webif.py:2340
+msgid "URL erforderlich"
+msgstr "Wymagany adres URL"
+
+#: webif.py:386 webif.py:516
+msgid "Ungültige Startzeit"
+msgstr "Nieprawidłowa godzina rozpoczęcia"
+
+#: webif.py:2213
+msgid ""
+"Achtung: Alle vorhandenen Einträge werden gelöscht und durch die Backup-"
+"Datei ersetzt. Fortfahren?"
+msgstr ""
+"Uwaga: Wszystkie istniejące wpisy zostaną usunięte i zastąpione plikiem "
+"kopii zapasowej. Czy chcesz kontynuować?"
+
+#: webif.py:2216
+msgid ""
+"Die Einträge aus der Backup-Datei werden zu den vorhandenen hinzugefügt. "
+"Duplikate werden übersprungen. Fortfahren?"
+msgstr ""
+"Wpisy z pliku kopii zapasowej zostaną dodane do istniejących. Duplikaty "
+"zostaną pominięte. Kontynuować?"
+
+#: webif.py:2219
+msgid "Logo für alle Streams im Ordner übernehmen"
+msgstr "Zastosuj logo do wszystkich strumieni w folderze"
+
+#: webif.py:2222
+msgid "Alle Einträge und Logos als ZIP exportieren"
+msgstr "Eksportuj wszystkie wpisy i logo do archiwum ZIP"
+
+#: webif.py:2225
+msgid "User-Agent gilt nur bei Player: exteplayer3 (HLS)"
+msgstr "User-Agent dotyczy tylko odtwarzacza: exteplayer3 (HLS)"
+
+#: webif.py:2228
+msgid "Lokaler Playlist Server (HLS Audiofix)"
+msgstr "Lokalny serwer listy odtwarzania (HLS Audiofix)"
+
+#: webif.py:2235
+msgid "Bitte zuerst eine Backup-Datei (.zip) auswählen."
+msgstr "Proszę najpierw wybrać plik kopii zapasowej (.zip)."
+
+#: webif.py:2238
+msgid "Bitte mindestens einen Stream auswählen."
+msgstr "Proszę wybrać co najmniej jeden strumień."
+
+#: webif.py:2241
+msgid "Bitte einen Ordner-Namen eingeben."
+msgstr "Proszę wprowadzić nazwę folderu."
+
+#: webif.py:2244
+msgid "Bitte einen Ordner auswählen."
+msgstr "Proszę wybrać folder."
+
+#: webif.py:2247
+msgid "Fehler beim Erstellen des Ordners."
+msgstr "Błąd podczas tworzenia folderu."
+
+#: webif.py:2250
+msgid "Nur PNG/JPG-Dateien werden unterstützt."
+msgstr "Obsługiwane są tylko pliki PNG/JPG."
+
+#: webif.py:2253
+msgid "Logo-Download fehlgeschlagen: "
+msgstr "Nie udało się pobrać logo: "
+
+#: webif.py:2256
+msgid "Upload fehlgeschlagen: "
+msgstr "Nie udało się przesłać: "
+
+#: webif.py:2259
+msgid "Bitte eine URL eingeben"
+msgstr "Proszę wprowadzić adres URL"
+
+#: webif.py:2262
+msgid "URL endet nicht auf .png/.jpg – trotzdem versuchen?"
+msgstr "Adres URL nie kończy się na .png/.jpg — czy mimo to spróbować?"
+
+#: webif.py:2265
+msgid "Keine Streams in der Datei gefunden."
+msgstr "W pliku nie znaleziono żadnych strumieni."
+
+#: webif.py:2268
+msgid "Noch keine Streams in diesem Ordner."
+msgstr "W tym folderze nie ma jeszcze żadnych strumieni."
+
+#: webif.py:2271
+msgid "Noch keine Einträge."
+msgstr "Brak wpisów"
+
+#: webif.py:2274
+msgid "Ordner und alle enthaltenen Streams löschen?"
+msgstr "Czy chcesz usunąć folder i wszystkie zawarte w nim strumienie?"
+
+#: webif.py:2277
+msgid "ZIP-Backup importieren"
+msgstr "Importuj kopię zapasową ZIP"
+
+#: webif.py:2280
+msgid "Logo-URLs automatisch laden"
+msgstr "Automatycznie ładowanie adresu z URL logo"
+
+#: webif.py:2283
+msgid "Alle übernehmen"
+msgstr "Przejęcie kontroli"
+
+#: webif.py:2286
+msgid "Alle einklappen"
+msgstr "Zwiń wszystko"
+
+#: webif.py:2289
+msgid "Alle ausklappen"
+msgstr "Rozwiń wszystko"
+
+#: webif.py:2292
+msgid "Einträge hinzufügen"
+msgstr "Dodaj wpisy"
+
+#: webif.py:2295
+msgid "Alles ersetzen"
+msgstr "Zmień wszystko"
+
+#: webif.py:2298
+msgid "M3U importieren"
+msgstr "Importuj M3U"
+
+#: webif.py:2301
+msgid "Ordner bearbeiten"
+msgstr "Edytuj folder"
+
+#: webif.py:2304
+msgid "Stream bearbeiten"
+msgstr "Edytuj strumień"
+
+#: webif.py:2307
+msgid "Eintrag hinzufügen"
+msgstr "Dodaj wpis"
+
+#: webif.py:2310
+msgid "Ordner hinzufügen"
+msgstr "Dodaj folder"
+
+#: webif.py:2313
+msgid "Stream hinzufügen"
+msgstr "Dodaj strumień"
+
+#: webif.py:2319
+msgid "In vorhandenen Ordner"
+msgstr "W istniejącym folderze"
+
+#: webif.py:2322
+msgid "Als neuer Ordner"
+msgstr "Jako nowy folder"
+
+#: webif.py:2325
+msgid "Einzelne Streams"
+msgstr "Poszczególne strumienie"
+
+#: webif.py:2328
+msgid "Import abgeschlossen: "
+msgstr "Import zakończony: "
+
+#: webif.py:2331
+msgid "Import fehlgeschlagen: "
+msgstr "Import nie powiódł się: "
+
+#: webif.py:2334
+msgid "Unbekannter Fehler"
+msgstr "Nieznany błąd"
+
+#: webif.py:2343
+msgid "Importiere…"
+msgstr "Import…"
+
+#: webif.py:2346
+msgid "Importieren"
+msgstr "Import"
+
+#: webif.py:2349
+msgid "Exportieren"
+msgstr "Eksport"
+
+#: webif.py:2352
+msgid "Auswählen"
+msgstr "Wybierz"
+
+#: webif.py:2355
+msgid "Von Ordner"
+msgstr "z folderu"
+
+#: webif.py:2356
+msgid "Laden"
+msgstr "Dodaj"
+
+#: webif.py:2357
+msgid "Weiter"
+msgstr "Dalej"
+
+#: webif.py:2358
+msgid "Alle"
+msgstr "Wszystko"
+
+#: webif.py:2359
+msgid "Keine"
+msgstr "brak"
+
+#: webif.py:2360 webif.py:2361
+msgid "Ordner"
+msgstr "Folder"
+
+#: webif.py:2362
+msgid "Datei auswählen"
+msgstr "Wybierz plik"
+
+#: webif.py:2363
+msgid "Keine ausgewählt"
+msgstr "Nie wybrano"
+
+#: webif.py:2365
+msgid "Ordnername"
+msgstr "Nazwa folderu"
+
+#: webif.py:2367
+msgid "Name"
+msgstr "Nazwa"
+
+#: webif.py:2369
+msgid "URL"
+msgstr "Adres URL"
+
+#: webif.py:2371
+msgid "Stream-URL"
+msgstr "Adres URL strumienia"
+
+#: webif.py:2373
+msgid "User-Agent (optional)"
+msgstr "User-Agent (opcja)"
+
+#: webif.py:2375
+msgid "Logo-URL (optional)"
+msgstr "Adres URL logo (opcja)"
+
+#: webif.py:2376
+msgid "PNG/JPG"
+msgstr "PNG/JPG"
+
+#: webif.py:2378
+msgid "Ordner-Name"
+msgstr "Nazwa folderu"
+
+#: webif.py:2380
+msgid "bereits vorhanden, übersprungen."
+msgstr "już istnieje, pominięte."
+
+#: webif.py:2382
+msgid "Einträge importiert."
+msgstr "Zaimportowano wpisy."
+
+#: webif.py:2384
+msgid "Einträge"
+msgstr "Wpisy"
+
+#: webif.py:2386
+msgid "Keine Ordner vorhanden"
+msgstr "Brak dostępnych folderów"
+
+#: webif.py:2387
+msgid "gefunden"
+msgstr "znaleziono"
+
+#: webif.py:2388
+msgid "mit Logo"
+msgstr "z logo"
+
+#: webif.py:2389
+msgid "von"
+msgstr "z"
+
+#: webif.py:2390
+msgid "importiert…"
+msgstr "importowanie…"
+
+#: webif.py:2391
+msgid "importiert."
+msgstr "zainportowano."
+
+#: webif.py:2392
+msgid "ausgewählt"
+msgstr "wybrane"
+
+#: webif.py:2393
+msgid "Zurück"
+msgstr "Wstecz"
+
+#: webif.py:2396
+msgid "Schließen"
+msgstr "Zamknij"
+
+#: webif.py:2397
+msgid "Geplante Aufnahme bearbeiten"
+msgstr "Edytuj zaplanowane nagranie"
+
+#: webif.py:2400
+msgid "Dauer (Minuten, leer = bis manuell gestoppt):"
+msgstr ""
+"Czas trwania (w minutach, puste pole = do momentu ręcznego zatrzymania):"
+
+#: webif.py:2406
+msgid "Gestartet/geplant wird über das &#9679;-Symbol an einem Stream."
+msgstr ""
+"Uruchamianie/planowanie odbywa się za pomocą ikony przycisku &#9679; "
+"podczas strumieniowania."
+
+#: webif.py:2407
+msgid "Laufende Aufnahmen"
+msgstr "Trwające nagrania"
+
+#: webif.py:2408
+msgid "Keine laufende Aufnahme."
+msgstr "Brak trwającego nagrywania."
+
+#: webif.py:2409
+msgid "Geplante Aufnahmen"
+msgstr "Planowane nagrania"
+
+#: webif.py:2410
+msgid "Keine geplanten Aufnahmen."
+msgstr "Nie zaplanowano żadnych nagrań."
+
+#: webif.py:2412
+msgid "bis gestoppt"
+msgstr "aż do zatrzymania"
+
+#: webif.py:2417
+msgid "geplant"
+msgstr "planowany"
+
+#: webif.py:2417
+msgid "läuft"
+msgstr "działanie"
+
+#: webif.py:2417
+msgid "fertig"
+msgstr "gotowe"
+
+#: webif.py:2417
+msgid "Fehler"
+msgstr "Błąd"
+
+#: webif.py:2417
+msgid "abgebrochen"
+msgstr "przerwane"
+
+#: webif.py:2420
+msgid "30 Min"
+msgstr "30 min"
+
+#: webif.py:2421
+msgid "1 Std"
+msgstr "1 godz."
+
+#: webif.py:2422
+msgid "2 Std"
+msgstr "2 godz."
+
+#: webif.py:2423
+msgid "3 Std"
+msgstr "3 godz."
+
+#: webif.py:2424
+msgid "6 Std"
+msgstr "6 godz."
+
+#: webif.py:2425
+msgid "Bis gestoppt"
+msgstr "Aż do zatrzymania"
+
+#: webif.py:2426
+msgid "Eigene Dauer (Minuten)"
+msgstr "Własny czas trwania (w minutach)"
+
+#: webif.py:2427
+msgid "Jetzt aufnehmen"
+msgstr "Nagraj teraz"
+
+#: webif.py:2428
+msgid "Für später planen"
+msgstr "Programowanie timera"
+
+#: webif.py:2429
+msgid "Timer anlegen"
+msgstr "Ustaw timer"
+
+#: webif.py:2430
+msgid "Aufnahme: "
+msgstr "Nagrywanie: "
+
+#: webif.py:2433
+msgid "Diese laufende Aufnahme stoppen?"
+msgstr "Zatrzymać nagrywanie?"
+
+#: webif.py:2434
+msgid "Diesen Aufnahme-Timer löschen?"
+msgstr "Usunąć ten timer nagrywania?"
+
+#: webif.py:2435
+msgid "Bitte Name und Startzeit angeben."
+msgstr "Proszę nazwę i godzinę rozpoczęcia."
+
+#: webif.py:2436
+msgid "Unglültige Startzeit."
+msgstr "Nieprawidłowa godzina rozpoczęcia."
+
+#: webif.py:2437
+msgid "Speichern fehlgeschlagen: "
+msgstr "Zapisywanie nie powiodło się: "
+
+#: webif.py:2438
+msgid "Start fehlgeschlagen: "
+msgstr "Nieudane uruchomienie: "
+
+#: webif.py:2439
+msgid "Bitte eine gültige Dauer in Minuten angeben."
+msgstr "Proszę podać prawidłowy czas trwania w minutach."
+
+#: webif.py:2440
+msgid "Bitte Startzeit angeben."
+msgstr "Proszę podać godzinę rozpoczęcia."
+
+#: webif.py:2441
+msgid "Anlegen fehlgeschlagen: "
+msgstr "Nie udało się utworzyć: "
+
+#~ msgid "CH+/- = Seite"
+#~ msgstr "CH+/- = strona"
+
+#~ msgid "OK = Öffnen"
+#~ msgstr "OK = Otwórz"
+
+#~ msgid "OK = Abspielen"
+#~ msgstr "OK = Odtwarzanie"
+
+#~ msgid "CH+/- = Seite blättern"
+#~ msgstr "CH+/- = przełącz stronę"
+
+#~ msgid "PNG"
+#~ msgstr "PNG"
+
+#~ msgid "Playlist"
+#~ msgstr "Lista odtwarzania"
+
+#~ msgid "Stream"
+#~ msgstr "Strumień"
+
+#~ msgid "Backup"
+#~ msgstr "Kopia zapasowa"
