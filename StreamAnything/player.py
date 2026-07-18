@@ -22,8 +22,12 @@ except ImportError:
 _OFFLINE_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "offline_stream.mp4")
 
 
-def _offline_ref():
-    return eServiceReference(4097, 0, _OFFLINE_VIDEO)
+def _offline_ref(name=""):
+    ref = eServiceReference(4097, 0, _OFFLINE_VIDEO)
+    if name:
+        title = (name + " (Offline)").encode("utf-8") if isinstance(name, type(u"")) else (name + b" (Offline)")
+        ref.setName(title)
+    return ref
 
 
 class SAStreamPlayer(MoviePlayer):
@@ -157,11 +161,12 @@ class SAStreamPlayer(MoviePlayer):
             return
         if len(self._streams) > 1:
             self._showing_offline = True
+            stream_name = self._streams[self._stream_index].get("name", "") if self._streams else ""
             try:
                 from twisted.internet import reactor
-                reactor.callLater(0.5, self.session.nav.playService, _offline_ref())
+                reactor.callLater(0.5, self.session.nav.playService, _offline_ref(stream_name))
             except Exception:
-                self.session.nav.playService(_offline_ref())
+                self.session.nav.playService(_offline_ref(stream_name))
             return
         self.close()
 
