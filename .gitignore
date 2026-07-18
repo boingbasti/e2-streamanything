@@ -4,3 +4,4 @@ __pycache__/
 _build/
 *.ipk
 cacert.pem
+build_cacert_ipk.py
