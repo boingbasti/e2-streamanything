@@ -128,6 +128,22 @@ class SAStreamPlayer(MoviePlayer):
                     url = resolved
         except Exception:
             pass
+        try:
+            import earthcam as _ec
+            if _ec.is_earthcam(url):
+                resolved = _ec.resolve(url)
+                if resolved:
+                    url = resolved
+        except Exception:
+            pass
+        try:
+            import earthtv as _etv
+            if _etv.is_earthtv(url):
+                resolved = _etv.resolve(url)
+                if resolved:
+                    url = resolved
+        except Exception:
+            pass
 
         url_str, user_agent = resolve_stream_url(url, user_agent, self._prefer_best_quality, hls_fix, referer)
 
@@ -135,7 +151,11 @@ class SAStreamPlayer(MoviePlayer):
             if getattr(self, "_switch_token", 0) != token:
                 _dbg("apply skipped: newer zap token active (token=%d active=%d)" % (token, self._switch_token))
                 return
-            self._switching = False
+            offline_call = getattr(self, "_offline_call", None)
+            if offline_call is not None and offline_call.active():
+                offline_call.cancel()
+            self._offline_call    = None
+            self._switching       = False
             if self._closed:
                 return
             ref = _build_ref(url_str, name, player, user_agent, self._autoconfigure)
@@ -164,7 +184,7 @@ class SAStreamPlayer(MoviePlayer):
             stream_name = self._streams[self._stream_index].get("name", "") if self._streams else ""
             try:
                 from twisted.internet import reactor
-                reactor.callLater(0.5, self.session.nav.playService, _offline_ref(stream_name))
+                self._offline_call = reactor.callLater(0.5, self.session.nav.playService, _offline_ref(stream_name))
             except Exception:
                 self.session.nav.playService(_offline_ref(stream_name))
             return
