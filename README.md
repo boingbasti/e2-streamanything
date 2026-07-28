@@ -42,10 +42,10 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 
 - Enigma2 / VTI (getestet auf VU+ Uno 4K SE mit VTi 15.0.04 und Python 2.7)
 - **ServiceApp** (optional) – wird für exteplayer3 und GStreamer benötigt. Im Player-Modus "Auto" wird exteplayer3 verwendet, wenn ServiceApp installiert ist; andernfalls fällt der Player automatisch auf den Enigma2-Standard-Player zurück und der Stream startet trotzdem. Bei explizit erzwungenem "exteplayer3" oder "GStreamer" gibt es keinen Fallback – ohne ServiceApp startet kein Stream. Die Einstellung "ServiceApp auto-konfigurieren" hat nur Wirkung, wenn ServiceApp installiert ist.
-- **Aktuelle CA-Zertifikate** (empfohlen) – VTI-Installationen haben oft veraltete CA-Zertifikate, was HTTPS-Verbindungen für YouTube-Auflösung, Logo-Download und HLS-Manifest-Abruf scheitern lassen kann. Im Release-Verzeichnis liegt ein aktuelles Paket bei, das bei Bedarf installiert werden kann:
+- **Aktuelle CA-Zertifikate** (empfohlen) – VTI-Installationen haben oft veraltete CA-Zertifikate, was HTTPS-Verbindungen für YouTube-Auflösung, Logo-Download und HLS-Manifest-Abruf scheitern lassen kann. Das aktuelle Paket ist im Release enthalten und kann bei Bedarf installiert werden – oder direkt über FeedPlus als Update bezogen werden:
 
   ```sh
-  opkg install ca-certificates-mozilla_2026.05.30_all.ipk
+  opkg install ca-certificates_20260714-r3_all.ipk
   ```
 
 ## Installation
@@ -55,7 +55,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.6.2_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.6.4_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
