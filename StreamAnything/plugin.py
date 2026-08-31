@@ -46,7 +46,7 @@ import skylinewebcams as _skyline
 import earthtv as _earthtv
 import earthcam as _earthcam
 import magentamusik as _magentamusik
-from player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration
+from player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
 
 PLUGIN_DIR = os.path.dirname(__file__)
 LOGO_DIR   = os.path.join(PLUGIN_DIR, "logos")
@@ -2994,6 +2994,7 @@ _autostart_timer = None
 
 
 def main(session, **kwargs):
+    _self_heal_all_serviceapp_backups(session)
     _webif.start()
     session.open(StreamAnywhereScreen)
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import io
+import json
 import os
 
 
@@ -59,6 +61,7 @@ class SAStreamPlayer(MoviePlayer):
 
     def __mark_closed(self):
         self._closed = True
+        _restore_serviceapp_settings()
 
     def _switch_stream(self, direction):
         _dbg("_switch_stream called direction=%d" % direction)
@@ -496,25 +499,317 @@ def _build_referer_proxy(url, user_agent="", referer="", hls_audio_fix=False):
         return None
 
 
-def _configure_serviceapp_for_live():
+# Felder, die _configure_serviceapp_for_live() live-tunt und die deshalb vor
+# der ersten Aenderung gesichert und beim Verlassen der Live-Wiedergabe
+# wiederhergestellt werden muessen. debugLoggingEnabled/pcmAudioExportEnabled
+# gehoeren NICHT hierher - die werden nie .save()t, nur als Kwargs an
+# setExtEplayer3Settings() durchgereicht (siehe _push_serviceapp_native_settings).
+_SERVICEAPP_BACKUP_FIELDS = (
+    ("opts", "hls_explorer"),
+    ("opts", "autoselect_stream"),
+    ("opts", "hls_audio_filter"),
+    ("ext3", "downmix"),
+    ("ext3", "aac_swdecoding"),
+    ("ext3", "hls_quality_mode"),
+    ("ext3", "hls_audio_default_only"),
+)
+
+# Bekannte Settings-Dateien der drei Schwester-Plugins desselben Autors
+# (StreamAnything/OeMediathek/MagentaMusik), die alle dieselbe globale
+# ServiceApp-Config antasten. Fuer plugin-uebergreifendes Self-Healing, siehe
+# _self_heal_all_serviceapp_backups().
+_SIBLING_SERVICEAPP_BACKUP_SOURCES = (
+    ("/etc/enigma2/streamanything.json",       "settings"),
+    ("/etc/enigma2/oemediathek_settings.json", None),
+    ("/etc/enigma2/magentamusik.json",         "settings"),
+)
+
+
+def _capture_serviceapp_field_values(opts, ext3):
+    objs = {"opts": opts, "ext3": ext3}
+    out = {}
+    for obj_name, attr in _SERVICEAPP_BACKUP_FIELDS:
+        obj = objs[obj_name]
+        if hasattr(obj, attr):
+            out["%s.%s" % (obj_name, attr)] = getattr(obj, attr).value
+    return out
+
+
+def _load_serviceapp_backup():
+    try:
+        import streams as _streams
+        return _streams.get_config().get("settings", {}).get("serviceapp_backup")
+    except Exception:
+        return None
+
+
+def _save_serviceapp_backup(backup):
+    try:
+        import streams as _streams
+        cfg = _streams.get_config()
+        cfg.setdefault("settings", {})["serviceapp_backup"] = backup
+        _streams.save_config(cfg)
+    except Exception:
+        pass
+
+
+def _clear_serviceapp_backup():
+    try:
+        import streams as _streams
+        cfg = _streams.get_config()
+        cfg.get("settings", {}).pop("serviceapp_backup", None)
+        _streams.save_config(cfg)
+    except Exception:
+        pass
+
+
+def _push_serviceapp_native_settings(opts, ext3):
+    """Schreibt die aktuellen opts/ext3-Werte in ServiceApps globalen,
+    prozessweiten C-Struct (setExtEplayer3Settings()/setServiceAppSettings()).
+    Aus _configure_serviceapp_for_live() herausgezogen, damit
+    _restore_serviceapp_settings() dieselbe has_*-gated Kwargs-Logik
+    wiederverwenden kann - genau deren Duplizierung hat den
+    debugLoggingEnabled- und pcmAudioExportEnabled-Bug verursacht
+    (siehe Commits 2788571 / 2fe6cd3)."""
     try:
         from Components.config import config
         from Plugins.SystemPlugins.ServiceApp.serviceapp_client import (
             setExtEplayer3Settings, setServiceAppSettings, OPTIONS_SERVICEEXTEPLAYER3
         )
-        key  = "serviceexteplayer3"
-        opts = config.plugins.serviceapp.options[key]
-        ext3 = config.plugins.serviceapp.exteplayer3[key]
+        debug_logging = config.plugins.serviceapp.debug_logging.value
 
         try:
             from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER as has_new_serviceapp
         except ImportError:
             has_new_serviceapp = False
-
         try:
             from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_HLS_QUALITY_SELECT as has_quality_select
         except ImportError:
             has_quality_select = False
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_DEBUG_LOGGING_CONTROL as has_debug_logging_control
+        except ImportError:
+            has_debug_logging_control = False
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_PCM_AUDIO_EXPORT as has_pcm_audio_export
+        except ImportError:
+            has_pcm_audio_export = False
+
+        # v181 erwartet '-a 0|1|2|3', altes serviceapp.so generiert '-a' ohne Wert → hängt
+        aac_sw = False if _has_new_exteplayer3() else ext3.aac_swdecoding.value
+        # debugLoggingEnabled nur mitgeben, wenn die installierte serviceapp den
+        # Parameter ueberhaupt kennt - sonst wirft der C-Aufruf bei einer aelteren
+        # Version einen TypeError (zu viele Argumente).
+        extra_kwargs = {"debugLoggingEnabled": debug_logging} if has_debug_logging_control else {}
+        # Eigene Kopie fuer setExtEplayer3Settings: pcmAudioExportEnabled kennt nur
+        # dieses Setter-Paar, nicht setServiceAppSettings() weiter unten (das teilt
+        # sich extra_kwargs mit). MUSS mitgegeben werden, wenn bekannt: der
+        # zugrundeliegende C-Struct ist global/prozessweit, ein fehlender Parameter
+        # faellt auf Pythons Default (False) zurueck und ueberschreibt damit
+        # unbemerkt den im Setup gesetzten Wert - auch fuer alle spaeteren Streams
+        # anderer Plugins, bis das Setup erneut gespeichert oder Enigma2 neu
+        # gestartet wird.
+        extra_kwargs_ext3 = dict(extra_kwargs)
+        if has_pcm_audio_export and hasattr(ext3, "pcm_audio_export"):
+            extra_kwargs_ext3["pcmAudioExportEnabled"] = ext3.pcm_audio_export.value
+
+        if has_quality_select:
+            hls_qm = {"auto": 0, "lowest": 1, "highest": 2}.get(ext3.hls_quality_mode.value, 0)
+            setExtEplayer3Settings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                aac_sw,
+                ext3.dts_swdecoding.value,
+                ext3.wma_swdecoding.value,
+                ext3.lpcm_injecion.value,
+                ext3.downmix.value,
+                hls_qm,
+                ext3.hls_audio_default_only.value,
+                **extra_kwargs_ext3
+            )
+        else:
+            setExtEplayer3Settings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                aac_sw,
+                ext3.dts_swdecoding.value,
+                ext3.wma_swdecoding.value,
+                ext3.lpcm_injecion.value,
+                ext3.downmix.value,
+                **extra_kwargs_ext3
+            )
+
+        if has_new_serviceapp and hasattr(opts, "hls_audio_filter"):
+            setServiceAppSettings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                opts.hls_explorer.value,
+                opts.autoselect_stream.value,
+                opts.connection_speed_kb.value,
+                opts.autoturnon_subtitles.value,
+                opts.hls_audio_filter.value,
+                **extra_kwargs
+            )
+        else:
+            setServiceAppSettings(
+                OPTIONS_SERVICEEXTEPLAYER3,
+                opts.hls_explorer.value,
+                opts.autoselect_stream.value,
+                opts.connection_speed_kb.value,
+                opts.autoturnon_subtitles.value,
+                **extra_kwargs
+            )
+    except Exception:
+        pass
+
+
+def _restore_backup_dict(backup):
+    """Wendet einen einzelnen Backup-Blob auf ServiceApps aktuelle Config an.
+    Restauriert pro Feld nur, wenn der aktuelle Wert noch exakt dem zuletzt
+    von HIER geschriebenen Wert entspricht (last_applied) - hat der Nutzer
+    (oder ein anderes Plugin/das native Setup) den Wert seitdem bewusst
+    geaendert, bleibt dieses Feld unangetastet. Gibt True zurueck, wenn der
+    Backup-Block verarbeitet wurde (unabhaengig davon ob dabei tatsaechlich
+    etwas geaendert wurde)."""
+    if not backup:
+        return False
+    try:
+        from Components.config import config
+        key  = "serviceexteplayer3"
+        opts = config.plugins.serviceapp.options[key]
+        ext3 = config.plugins.serviceapp.exteplayer3[key]
+        objs = {"opts": opts, "ext3": ext3}
+        values       = backup.get("values", {}) or {}
+        last_applied = backup.get("last_applied", {}) or {}
+        for field_key, orig_value in values.items():
+            obj_name, attr = field_key.split(".", 1)
+            obj = objs.get(obj_name)
+            if obj is None or not hasattr(obj, attr):
+                continue
+            cfg_item = getattr(obj, attr)
+            applied = last_applied.get(field_key, cfg_item.value)
+            if cfg_item.value != applied:
+                continue
+            if cfg_item.value != orig_value:
+                cfg_item.value = orig_value
+                cfg_item.save()
+        _push_serviceapp_native_settings(opts, ext3)
+        return True
+    except Exception:
+        return False
+
+
+def _restore_serviceapp_settings():
+    """Wird beim echten Schliessen des Live-Players aufgerufen (siehe
+    SAStreamPlayer.__mark_closed). Idempotent - No-Op, wenn kein Backup
+    aussteht (z.B. weil das Self-Healing es schon behandelt hat)."""
+    backup = _load_serviceapp_backup()
+    if not backup:
+        return
+    if _restore_backup_dict(backup):
+        _clear_serviceapp_backup()
+        _dbg("_restore_serviceapp_settings: restored")
+
+
+def _restore_serviceapp_settings_from(json_path, settings_subkey):
+    """Plugin-uebergreifendes Self-Healing: liest/loescht ein
+    'serviceapp_backup' direkt aus der Settings-JSON eines der SCHWESTER-
+    Plugins (StreamAnything/OeMediathek/MagentaMusik teilen sich dieselbe
+    globale ServiceApp-Config, fuehren aber jeweils ihr eigenes, isoliertes
+    Backup). Kein Fehlerfall, wenn die Datei fehlt (Plugin nicht installiert)
+    oder keinen Backup-Key enthaelt."""
+    try:
+        if not os.path.exists(json_path):
+            return
+        with io.open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        settings = data.get(settings_subkey) if settings_subkey else data
+        if not isinstance(settings, dict):
+            return
+        backup = settings.get("serviceapp_backup")
+        if not backup:
+            return
+        if _restore_backup_dict(backup):
+            del settings["serviceapp_backup"]
+            content = json.dumps(data, ensure_ascii=False, indent=2)
+            if not isinstance(content, bytes):
+                content = content.encode("utf-8")
+            tmp = json_path + ".tmp"
+            with open(tmp, "wb") as f:
+                f.write(content)
+            os.rename(tmp, json_path)
+            _dbg("_restore_serviceapp_settings_from: healed %s" % json_path)
+    except Exception:
+        pass
+
+
+# Referenztypen, unter denen eine der drei Schwester-Plugins ueberhaupt
+# spielen kann (idServiceMP3/idServiceGstPlayer/idServiceExtEplayer3). Live-
+# Praxistest hat gezeigt: ein reiner "spielt ueberhaupt irgendwas"-Check
+# (jeder eServiceReference-Typ, auch normales DVB-Live-TV = Typ 1) blockiert
+# die Selbstheilung praktisch IMMER, weil beim Oeffnen eines Plugins so gut
+# wie nie wirklich NICHTS laeuft - es sei denn man zappt gezielt auf einen
+# toten Kanal. Normales Live-TV kann aber gar keine unserer serviceapp_backup-
+# Dateien erzeugt haben, blockiert die Heilung also nur unnoetig.
+_SERVICEAPP_RELEVANT_REF_TYPES = (4097, 5001, 5002)
+
+
+def _self_heal_all_serviceapp_backups(session):
+    """Am Plugin-Menue-Einstieg (main()) aufgerufen: heilt ein liegen
+    gebliebenes Backup aus einer nicht sauber beendeten Sitzung EINES DER DREI
+    Schwester-Plugins, unabhaengig davon welches der drei gerade geoeffnet
+    wird. Ein gefundenes Backup ist aber nicht automatisch eine Absturz-
+    Leiche - es kann auch zu einer gerade noch laufenden Sitzung eines
+    ANDEREN, noch offenen Plugins gehoeren. Restaurieren waere in dem Fall
+    genau der Fehler, den der Mechanismus verhindern soll, nur durch die
+    Hintertuer: das andere Plugin faende beim eigenen Schliessen kein Backup
+    mehr vor und koennte seine echten Originalwerte nicht mehr
+    wiederherstellen. Deshalb nur restaurieren, wenn der aktuell laufende
+    Service NICHT von einem der Referenztypen ist, unter denen ueberhaupt
+    eine dieser drei Plugins spielen kann (4097/5001/5002) - normales
+    Live-TV (Typ 1) blockiert die Heilung also NICHT mehr, siehe
+    _SERVICEAPP_RELEVANT_REF_TYPES. 4097 bleibt bewusst konservativ
+    mitgezaehlt, da darueber sowohl der native Player als auch (je nach
+    Wiedergabemodul) serviceapp laeuft und sich das von hier aus nicht sicher
+    unterscheiden laesst. Deckt weiterhin NICHT den Fall ab, dass ein anderes
+    Plugin offen, aber pausiert/idle ist ohne aktiven Service - bewusst
+    akzeptierte Restluecke.
+
+    Weitere bekannte, bewusst nicht geloeste Einschraenkung: Laufen zwei
+    dieser Plugins zeitlich UEBERLAPPEND (selten, da Enigma2 i.d.R. nur einen
+    Service gleichzeitig abspielt, aber nicht ausgeschlossen), sieht das
+    zweite beim eigenen Snapshot bereits die vom ersten getunten Werte als
+    "Original". Eine echte Loesung dafuer braeuchte Locking/Refcounting ueber
+    alle drei Plugins hinweg - deutlich groesserer Scope als hier
+    gerechtfertigt."""
+    try:
+        current_ref = session.nav.getCurrentlyPlayingServiceReference()
+        if current_ref is not None and current_ref.type in _SERVICEAPP_RELEVANT_REF_TYPES:
+            return
+    except Exception:
+        return
+    for path, settings_subkey in _SIBLING_SERVICEAPP_BACKUP_SOURCES:
+        _restore_serviceapp_settings_from(path, settings_subkey)
+
+
+def _configure_serviceapp_for_live():
+    try:
+        from Components.config import config
+        key  = "serviceexteplayer3"
+        opts = config.plugins.serviceapp.options[key]
+        ext3 = config.plugins.serviceapp.exteplayer3[key]
+
+        backup = _load_serviceapp_backup()
+        if backup is None:
+            # Erster Aufruf dieser Sitzung (kein Re-Zap innerhalb einer schon
+            # laufenden) - jetzt, VOR jeder Aenderung, die echten
+            # Originalwerte sichern.
+            backup = {
+                "version": 1,
+                "values": _capture_serviceapp_field_values(opts, ext3),
+                "last_applied": {},
+            }
+            _save_serviceapp_backup(backup)
+            _dbg("_configure_serviceapp_for_live: snapshot captured")
+        else:
+            _dbg("_configure_serviceapp_for_live: backup already pending, skipping snapshot")
 
         if not ext3.downmix.value:
             ext3.downmix.value = True; ext3.downmix.save()
@@ -534,6 +829,15 @@ def _configure_serviceapp_for_live():
             if not ext3.aac_swdecoding.value:
                 ext3.aac_swdecoding.value = True; ext3.aac_swdecoding.save()
 
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER as has_new_serviceapp
+        except ImportError:
+            has_new_serviceapp = False
+        try:
+            from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_HLS_QUALITY_SELECT as has_quality_select
+        except ImportError:
+            has_quality_select = False
+
         if has_new_serviceapp and hasattr(opts, "hls_audio_filter"):
             if not opts.hls_audio_filter.value:
                 opts.hls_audio_filter.value = True; opts.hls_audio_filter.save()
@@ -545,47 +849,10 @@ def _configure_serviceapp_for_live():
             if not ext3.hls_audio_default_only.value:
                 ext3.hls_audio_default_only.value = True; ext3.hls_audio_default_only.save()
 
-        # v181 erwartet '-a 0|1|2|3', altes serviceapp.so generiert '-a' ohne Wert → hängt
-        aac_sw = False if _has_new_exteplayer3() else ext3.aac_swdecoding.value
-        if has_quality_select:
-            hls_qm = {"auto": 0, "lowest": 1, "highest": 2}.get(ext3.hls_quality_mode.value, 0)
-            setExtEplayer3Settings(
-                OPTIONS_SERVICEEXTEPLAYER3,
-                aac_sw,
-                ext3.dts_swdecoding.value,
-                ext3.wma_swdecoding.value,
-                ext3.lpcm_injecion.value,
-                ext3.downmix.value,
-                hls_qm,
-                ext3.hls_audio_default_only.value
-            )
-        else:
-            setExtEplayer3Settings(
-                OPTIONS_SERVICEEXTEPLAYER3,
-                aac_sw,
-                ext3.dts_swdecoding.value,
-                ext3.wma_swdecoding.value,
-                ext3.lpcm_injecion.value,
-                ext3.downmix.value
-            )
+        _push_serviceapp_native_settings(opts, ext3)
 
-        if has_new_serviceapp and hasattr(opts, "hls_audio_filter"):
-            setServiceAppSettings(
-                OPTIONS_SERVICEEXTEPLAYER3,
-                opts.hls_explorer.value,
-                opts.autoselect_stream.value,
-                opts.connection_speed_kb.value,
-                opts.autoturnon_subtitles.value,
-                opts.hls_audio_filter.value
-            )
-        else:
-            setServiceAppSettings(
-                OPTIONS_SERVICEEXTEPLAYER3,
-                opts.hls_explorer.value,
-                opts.autoselect_stream.value,
-                opts.connection_speed_kb.value,
-                opts.autoturnon_subtitles.value
-            )
+        backup["last_applied"] = _capture_serviceapp_field_values(opts, ext3)
+        _save_serviceapp_backup(backup)
     except Exception:
         pass
 
