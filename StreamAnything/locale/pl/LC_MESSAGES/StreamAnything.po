@@ -58,6 +58,9 @@ msgstr "EXIT = Zamknij"
 msgid "Keine laufende Aufnahme"
 msgstr "Brak trwającego nagrania"
 
+msgid "Aufnahme nicht möglich: "
+msgstr "Recording not possible: "
+
 #: plugin.py:558 webif.py:2411
 msgid "unbegrenzt"
 msgstr "nieograniczony"

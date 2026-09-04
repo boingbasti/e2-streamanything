@@ -190,6 +190,9 @@ msgstr "EXIT = Close"
 msgid "Keine laufende Aufnahme"
 msgstr "No active recording"
 
+msgid "Aufnahme nicht möglich: "
+msgstr "Recording not possible: "
+
 msgid "Markierte Aufnahme stoppen"
 msgstr "Stop selected recording"
 

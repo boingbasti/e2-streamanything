@@ -238,6 +238,7 @@ def _play_item_bg(session, item, idx, items, url):
 RECORDING_DIR = "/media/hdd/movie/StreamAnything"
 
 _active_recordings = []
+_session = None
 _recordings_lock    = threading.Lock()
 
 
@@ -337,6 +338,16 @@ def _on_recording_finished(rec, *args):
             _active_recordings.remove(rec)
     if args:
         _dbg("Aufnahme-Fehler: %s - %s" % (rec.title, args[0]))
+        try:
+            from twisted.internet import reactor
+            from Screens.MessageBox import MessageBox
+            msg = _b(_("Aufnahme nicht möglich: ") + str(args[0]))
+            def _show():
+                if _session:
+                    _session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
+            reactor.callFromThread(_show)
+        except Exception:
+            pass
     else:
         _dbg("Aufnahme fertig: %s -> %s" % (rec.title, rec.filepath))
         try:
@@ -3003,6 +3014,8 @@ _autostart_timer = None
 
 
 def main(session, **kwargs):
+    global _session
+    _session = session
     _self_heal_all_serviceapp_backups(session)
     _webif.start()
     session.open(StreamAnywhereScreen)

@@ -1140,7 +1140,7 @@ class HLSRecorder(object):
                 from urllib.parse import urljoin
 
             if not self._url.lower().split("?")[0].endswith(".m3u8"):
-                raise Exception("Aufnahme wird aktuell nur fuer HLS (.m3u8) Streams unterstuetzt")
+                raise Exception("Aufnahme wird aktuell nur für HLS (.m3u8) Streams unterstützt")
 
             self._started_at = time.time()
             headers = {"User-Agent": self._user_agent or "Mozilla/5.0"}
