@@ -49,6 +49,14 @@ import magentamusik as _magentamusik
 from player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
 
 PLUGIN_DIR = os.path.dirname(__file__)
+
+
+def _has_native_hls():
+    try:
+        from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER
+        return bool(HAS_NATIVE_REFERER)
+    except Exception:
+        return False
 LOGO_DIR   = os.path.join(PLUGIN_DIR, "logos")
 
 try:
@@ -1185,11 +1193,12 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
     choices = [
         (_b(_("Player:     ") + _PLAYER_LABELS.get(cur_player, _("Auto"))),              "player"),
         (_b(_("User-Agent: ") + cur_ua_label),                                            "ua"),
-        (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))),      "hls_fix"),
         (_b(_("Quell-Website: ") + cur_ref_label),                                        "referer"),
         (_b(_("Aufnahme starten")),                                                       "record"),
         (_b(_("Löschen")),                                                                "delete"),
     ]
+    if not _has_native_hls():
+        choices.insert(2, (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))), "hls_fix"))
 
     def on_ua(choice):
         if choice is None:

@@ -246,6 +246,15 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_file(os.path.join(os.path.dirname(__file__), "plugin.png"))
             return
 
+        if path == "/api/caps":
+            try:
+                from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_REFERER
+                native_hls = bool(HAS_NATIVE_REFERER)
+            except Exception:
+                native_hls = False
+            self._send_json({"native_hls": native_hls})
+            return
+
         if path == "/api/config":
             cfg = _streams.get_config()
             self._send_json({"webif_port": cfg.get("webif_port", 8090)})
@@ -767,7 +776,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
     </div>
     <div id="editUaRow" class="form-row"><input id="editUserAgent" placeholder="User-Agent (optional)" list="uaList"></div>
     <p id="editUaHint" class="hint">User-Agent gilt nur bei Player: exteplayer3 (HLS)</p>
-    <div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="editHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>
+    <div id="editHlsRow" class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="editHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>
     <div id="editRefererRow" class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">
       <label style="white-space:nowrap"><input type="checkbox" id="editRefererProxy" onchange="document.getElementById('editRefererSub').style.display=this.checked?'':'none'"> Als Quell-Website ausgeben</label>
       <div id="editRefererSub" style="display:none;padding-left:20px;margin-top:4px">
@@ -908,7 +917,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
       <div class="form-row">
         <input id="m3uUserAgent" placeholder="User-Agent (optional)" list="uaList">
       </div>
-      <div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="m3uHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>
+      <div id="m3uHlsRow" class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="m3uHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>
       <div class="form-row">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="m3uFetchLogos" checked> Logo-URLs automatisch laden
@@ -970,7 +979,21 @@ function xhr(method, url, body, cb){
 
 function dbg(msg){ var el=document.getElementById('dbg'); if(el) el.textContent=msg; }
 
+var _SA_CAPS = {native_hls: false};
+
+function _applyCaps(){
+  if(_SA_CAPS.native_hls){
+    ['editHlsRow','m3uHlsRow'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.style.display='none';
+    });
+  }
+}
+
 function load(){
+  xhr('GET','/api/caps',null,function(caps){
+    if(caps && caps.native_hls) _SA_CAPS.native_hls=true;
+    _applyCaps();
+  });
   xhr('GET','/api/items',null,function(items){
     state.items = Array.isArray(items) ? items : [];
     render();
@@ -1038,7 +1061,7 @@ function renderAddForm(){
     h += '<div class="form-row">' + playerSelectHtml('newPlayer','') + '</div>';
     h += '<div class="form-row"><input id="newUserAgent" placeholder="User-Agent (optional)" list="uaList"></div>';
     h += '<p class="hint">User-Agent gilt nur bei Player: exteplayer3 (HLS)</p>';
-    h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="newHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
+    if(!_SA_CAPS.native_hls) h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="newHlsAudioFix"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
     h += '<div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">';
     h += '<label style="white-space:nowrap"><input type="checkbox" id="newRefererProxy" onchange="document.getElementById(\'newRefererSub\').style.display=this.checked?\'\':\' none\'"> Als Quell-Website ausgeben</label>';
     h += '<div id="newRefererSub" style="display:none;padding-left:20px;margin-top:4px">';
@@ -1168,7 +1191,7 @@ function renderFolderItem(g, gi){
   h += '<div class="form-row"><input id="fs_name_'+g.id+'" placeholder="Name" style="flex:.4"><input id="fs_url_'+g.id+'" placeholder="URL"></div>';
   h += '<div class="form-row">' + playerSelectHtml('fs_player_'+g.id,'') + '</div>';
   h += '<div class="form-row"><input id="fs_ua_'+g.id+'" placeholder="User-Agent (optional)" list="uaList"></div>';
-  h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="fs_hls_'+g.id+'"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
+  if(!_SA_CAPS.native_hls) h += '<div class="form-row"><label style="white-space:nowrap"><input type="checkbox" id="fs_hls_'+g.id+'"> Lokaler Playlist Server (HLS Audiofix)</label></div>';
   h += '<div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px">';
   h += '<label style="white-space:nowrap"><input type="checkbox" id="fs_rp_'+g.id+'" onchange="document.getElementById(\'fs_rsub_'+g.id+'\').style.display=this.checked?\'\':\' none\'"> Als Quell-Website ausgeben</label>';
   h += '<div id="fs_rsub_'+g.id+'" style="display:none;padding-left:20px;margin-top:4px">';
@@ -1202,7 +1225,7 @@ function addStream(){
   var logo_url  = state.pendingLogoUrl['add'] || '';
   var player    = document.getElementById('newPlayer').value;
   var ua        = document.getElementById('newUserAgent').value.trim();
-  var hlsFix    = document.getElementById('newHlsAudioFix').checked;
+  var _nhaf=document.getElementById('newHlsAudioFix'); var hlsFix=_nhaf?_nhaf.checked:false;
   var referer   = _refRead('newRefererProxy','newRefererMode','newRefererCustom');
   if(!name){alert('Name erforderlich');return;}
   if(!url){alert('URL erforderlich');return;}
@@ -1399,7 +1422,7 @@ function addFolderStream(gid){
   var url      = document.getElementById('fs_url_'+gid).value.trim();
   var player   = document.getElementById('fs_player_'+gid).value;
   var ua       = document.getElementById('fs_ua_'+gid).value.trim();
-  var hlsFix   = document.getElementById('fs_hls_'+gid).checked;
+  var _fshaf=document.getElementById('fs_hls_'+gid); var hlsFix=_fshaf?_fshaf.checked:false;
   var referer  = _refRead('fs_rp_'+gid,'fs_rmode_'+gid,'fs_rc_'+gid);
   var logo     = state.pendingLogo['fsadd_'+gid] || '';
   var logo_url = state.pendingLogoUrl['fsadd_'+gid] || '';
