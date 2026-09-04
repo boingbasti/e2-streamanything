@@ -145,6 +145,12 @@ msgstr "Recording"
 msgid "Aufnahmen"
 msgstr "Recordings"
 
+msgid "Aufnahme gestartet"
+msgstr "Recording started"
+
+msgid "Verwaltung: VTi-Timerliste (Menü → Aufnahmen)"
+msgstr "Manage: VTi timer list (Menu → Recordings)"
+
 msgid "Aufnahme starten"
 msgstr "Start recording"
 

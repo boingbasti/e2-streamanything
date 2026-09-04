@@ -239,6 +239,53 @@ RECORDING_DIR = "/media/hdd/movie/StreamAnything"
 
 _active_recordings = []
 _session = None
+_SA_REC_PREFIX = "SA: "
+
+
+class _NativeRecEntry(object):
+    def __init__(self, entry):
+        raw = _u(entry.name) if entry.name else u""
+        self.title     = raw[len(_SA_REC_PREFIX):] if raw.startswith(_u(_SA_REC_PREFIX)) else raw
+        self.duration  = max(0, entry.end - entry.begin)
+        self._downloaded = 0
+        self._begin    = entry.begin
+        self._entry    = entry
+        self.is_native = True
+
+    def elapsed(self):
+        import time
+        return max(0.0, time.time() - self._begin)
+
+
+def _get_native_recordings():
+    try:
+        import time
+        import NavigationInstance
+        if NavigationInstance.instance is None:
+            return []
+        rt  = NavigationInstance.instance.RecordTimer
+        now = time.time()
+        out = []
+        prefix = _u(_SA_REC_PREFIX)
+        for entry in list(rt.timer_list):
+            name = _u(entry.name) if entry.name else u""
+            if name.startswith(prefix) and entry.begin <= now < entry.end:
+                out.append(_NativeRecEntry(entry))
+        return out
+    except Exception:
+        return []
+
+
+def _cancel_native_recording(native_rec):
+    try:
+        import NavigationInstance
+        NavigationInstance.instance.RecordTimer.removeEntry(native_rec._entry)
+    except Exception:
+        pass
+
+
+def _get_all_recordings():
+    return _get_active_recordings() + _get_native_recordings()
 _recordings_lock    = threading.Lock()
 
 
@@ -306,6 +353,10 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
     prefer_bq = _get_setting("prefer_best_quality", True)
     url = _resolve_special_url(url, prefer_bq)
 
+    if _has_native_hls():
+        _start_native_recording(url, name, user_agent, duration_seconds, timer_id)
+        return
+
     if not os.path.isdir(RECORDING_DIR):
         try:
             os.makedirs(RECORDING_DIR)
@@ -327,6 +378,48 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
     with _recordings_lock:
         _active_recordings.append(rec)
     rec.start()
+
+
+def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
+    import time as _time
+    begin = int(_time.time())
+    end   = begin + (duration_seconds if duration_seconds else 14400)
+
+    url_str = url.decode("utf-8", "replace") if isinstance(url, bytes) else url
+    if user_agent:
+        sep = "&" if "|" in url_str else "|"
+        url_str = url_str + sep + "User-Agent=" + user_agent
+    url_bytes  = url_str.encode("utf-8") if not isinstance(url_str, bytes) else url_str
+    name_bytes       = _b(name)
+    timer_name_bytes = _b(_SA_REC_PREFIX) + name_bytes
+
+    def _register():
+        try:
+            import NavigationInstance
+            from enigma import eServiceReference
+            from RecordTimer import RecordTimerEntry
+            from ServiceReference import ServiceReference
+            ref = eServiceReference(5002, 0, url_bytes)
+            ref.setName(name_bytes)
+            entry = RecordTimerEntry(ServiceReference(ref), begin, end, timer_name_bytes, _b(""), None)
+            NavigationInstance.instance.RecordTimer.record(entry)
+            _dbg("Native Aufnahme gestartet: %s" % _u(name))
+            if _session:
+                from Screens.MessageBox import MessageBox as _MB
+                _session.open(_MB, _b(_("Aufnahme gestartet")), _MB.TYPE_INFO, timeout=4)
+            if timer_id:
+                try:
+                    _streams.update_recording_timer_status(timer_id, "running")
+                except Exception:
+                    pass
+        except Exception as e:
+            _dbg("Native Aufnahme fehlgeschlagen: %s" % e)
+
+    try:
+        from twisted.internet import reactor
+        reactor.callFromThread(_register)
+    except Exception as e:
+        _dbg("Native Aufnahme reactor-Fehler: %s" % e)
 
 
 def _on_recording_finished(rec, *args):
@@ -601,20 +694,24 @@ class StreamAnywhereRecordingsScreen(Screen):
             pass
 
     def _move(self, delta):
-        recs = _get_active_recordings()
+        recs = _get_all_recordings()
         if not recs:
             return
         self._sel = (self._sel + delta) % len(recs)
         self._render(recs)
 
     def _stop_selected(self):
-        recs = _get_active_recordings()
+        recs = _get_all_recordings()
         if not recs or self._sel >= len(recs):
             return
-        _cancel_recording(recs[self._sel])
+        rec = recs[self._sel]
+        if getattr(rec, "is_native", False):
+            _cancel_native_recording(rec)
+        else:
+            _cancel_recording(rec)
 
     def _poll(self):
-        recs = _get_active_recordings()
+        recs = _get_all_recordings()
         if self._sel >= len(recs):
             self._sel = max(0, len(recs) - 1)
         self._render(recs)
@@ -628,9 +725,14 @@ class StreamAnywhereRecordingsScreen(Screen):
             marker = "> " if i == self._sel else "   "
             title  = _u(rec.title)
             limit  = format_duration(rec.duration) if rec.duration else _("unbegrenzt")
-            lines.append(u"%s%s\n   %s / %s  -  %s" % (
-                marker, title, format_duration(rec.elapsed()), limit, format_size(rec._downloaded)
-            ))
+            if getattr(rec, "is_native", False):
+                lines.append(u"%s%s\n   %s / %s" % (
+                    marker, title, format_duration(rec.elapsed()), limit,
+                ))
+            else:
+                lines.append(u"%s%s\n   %s / %s  -  %s" % (
+                    marker, title, format_duration(rec.elapsed()), limit, format_size(rec._downloaded)
+                ))
         self["rec_label"].setText(_b(u"\n\n".join(lines)))
 
 
@@ -1621,7 +1723,7 @@ class StreamAnywhereScreen(Screen):
         self._render()
 
     def _update_info_hint(self):
-        self["hint_info"].setText(_b(_("EPG/INFO = Aufnahmen")) if _get_active_recordings() else _b(""))
+        self["hint_info"].setText(_b(_("EPG/INFO = Aufnahmen")) if _get_all_recordings() else _b(""))
 
     def _poll_config(self):
         self._update_info_hint()
@@ -2369,7 +2471,7 @@ class StreamAnywhereGroupScreen(Screen):
         self._render()
 
     def _update_info_hint(self):
-        self["hint_info"].setText(_b(_("EPG/INFO = Aufnahmen")) if _get_active_recordings() else _b(""))
+        self["hint_info"].setText(_b(_("EPG/INFO = Aufnahmen")) if _get_all_recordings() else _b(""))
 
     def _poll_config(self):
         self._update_info_hint()
