@@ -846,6 +846,37 @@ def _tile_widget(idx, x, y, w, h):
     )
 
 
+def _update_scrollbar(screen, rows):
+    total = len(screen._items)
+    if total <= rows:
+        try:
+            screen["scrollbar_track"].hide()
+            screen["scrollbar_thumb"].hide()
+        except Exception:
+            pass
+        return
+    try:
+        from enigma import eSize, ePoint
+        screen["scrollbar_track"].show()
+        screen["scrollbar_thumb"].show()
+        track_w   = 6 if IS_FHD else 4
+        overhang  = 2
+        thumb_w   = track_w + 2 * overhang
+        track_h   = rows * LIST_ROW_H
+        min_h     = 30 if IS_FHD else 20
+        thumb_h   = max(min_h, int(round(track_h * float(rows) / total)))
+        max_scroll = max(1, total - rows)
+        scroll_pos = max(0, min(screen._list_scroll, max_scroll))
+        thumb_y    = LIST_ROW_Y0 + int(round((track_h - thumb_h) * (float(scroll_pos) / max_scroll)))
+        screen["scrollbar_thumb"].instance.resize(eSize(thumb_w, thumb_h))
+        screen["scrollbar_thumb"].instance.move(ePoint(
+            screen["scrollbar_track"].instance.position().x() - overhang,
+            thumb_y,
+        ))
+    except Exception:
+        pass
+
+
 def _build_skin():
     sw, sh = _SCREEN_W, _SCREEN_H
     tiles_xml = "".join(
@@ -860,10 +891,13 @@ def _build_skin():
         lt_x       = lo_x + lo_w + 8
         lt_oy      = (LIST_ROW_H - lt_s) // 2
         ll_x       = lt_x + lt_s + 8
-        ll_w       = lr_x + lr_w - 10 - ll_x
+        ll_w       = lr_x + lr_w - 10 - ll_x - 14
         l_rf       = 32
         ls_x       = lo_x + lo_w + 5
-        ls_w       = lr_x + lr_w - ls_x
+        ls_w       = lr_x + lr_w - ls_x - 14
+        sb_x       = ls_x + ls_w + 4
+        sb_tw      = 6
+        sb_track_h = LIST_ROWS * LIST_ROW_H
     else:
         lr_x, lr_w = 30, sw - 60
         lo_x, lo_w = lr_x + 8, 65
@@ -871,10 +905,13 @@ def _build_skin():
         lt_x       = lo_x + lo_w + 5
         lt_oy      = (LIST_ROW_H - lt_s) // 2
         ll_x       = lt_x + lt_s + 5
-        ll_w       = lr_x + lr_w - 8 - ll_x
+        ll_w       = lr_x + lr_w - 8 - ll_x - 10
         l_rf       = 21
         ls_x       = lo_x + lo_w + 4
-        ls_w       = lr_x + lr_w - ls_x
+        ls_w       = lr_x + lr_w - ls_x - 10
+        sb_x       = ls_x + ls_w + 3
+        sb_tw      = 4
+        sb_track_h = LIST_ROWS * LIST_ROW_H
 
     list_xml = ""
     for i in range(LIST_ROWS):
@@ -894,6 +931,13 @@ def _build_skin():
         ).format(i=i, y=y, sx=ls_x, sw=ls_w, rh=LIST_ROW_H,
                  lox=lo_x, low=lo_w, lbx=ll_x, lbw=ll_w, rf=l_rf,
                  ltx=lt_x, lty=y + lt_oy, lts=lt_s)
+
+    list_xml += (
+        '<widget name="scrollbar_track" position="{x},{y}" size="{w},{h}" '
+        'backgroundColor="#1AFFFFFF" zPosition="1" transparent="0"/>'
+        '<widget name="scrollbar_thumb" position="{x},{y}" size="{w},{rh}" '
+        'backgroundColor="#11962d20" zPosition="2" transparent="0"/>'
+    ).format(x=sb_x, y=LIST_ROW_Y0, w=sb_tw, h=sb_track_h, rh=LIST_ROW_H)
 
     if IS_FHD:
         ly, lh = _LEGEND_Y, _LEGEND_H
@@ -1674,6 +1718,10 @@ class StreamAnywhereScreen(Screen):
             self["list_sel_%d"   % i].hide()
             self["list_grab_%d"  % i].hide()
             self["list_label_%d" % i].hide()
+        self["scrollbar_track"] = Label(_b(""))
+        self["scrollbar_thumb"] = Label(_b(""))
+        self["scrollbar_track"].hide()
+        self["scrollbar_thumb"].hide()
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
@@ -1797,6 +1845,11 @@ class StreamAnywhereScreen(Screen):
             if self._prev_render_mode is not False:
                 self._clear_all_list()
                 self._prev_render_mode = False
+                try:
+                    self["scrollbar_track"].hide()
+                    self["scrollbar_thumb"].hide()
+                except Exception:
+                    pass
             self._render_tiles()
 
     def _render_tiles(self):
@@ -1877,6 +1930,7 @@ class StreamAnywhereScreen(Screen):
         self["page_label"].setText(_b(count_str))
         self["webif_addr"].setText(getattr(self, "_webif_str", _b("")))
         self._update_legend()
+        _update_scrollbar(self, LIST_ROWS)
 
     def _clear_all_tiles(self):
         for i in range(TILES_PER_PAGE):
@@ -2322,7 +2376,20 @@ class StreamAnywhereScreen(Screen):
             total = len(self._items)
             if total == 0:
                 return
-            self._list_sel = max(0, min(self._list_sel + direction * LIST_ROWS, total - 1))
+            cur_page = self._list_scroll // LIST_ROWS
+            if direction > 0:
+                next_scroll = (cur_page + 1) * LIST_ROWS
+                if next_scroll < total:
+                    self._list_scroll = next_scroll
+                    self._list_sel    = next_scroll
+                else:
+                    self._list_sel = total - 1
+            else:
+                if self._list_scroll > 0:
+                    self._list_scroll = max(0, (cur_page - 1) * LIST_ROWS)
+                    self._list_sel    = self._list_scroll
+                else:
+                    self._list_sel = 0
             self._render_list()
             return
         total = len(self._items)
@@ -2430,6 +2497,10 @@ class StreamAnywhereGroupScreen(Screen):
             self["list_sel_%d"   % i].hide()
             self["list_grab_%d"  % i].hide()
             self["list_label_%d" % i].hide()
+        self["scrollbar_track"] = Label(_b(""))
+        self["scrollbar_thumb"] = Label(_b(""))
+        self["scrollbar_track"].hide()
+        self["scrollbar_thumb"].hide()
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
@@ -2536,6 +2607,11 @@ class StreamAnywhereGroupScreen(Screen):
             if self._prev_render_mode is not False:
                 self._clear_all_list()
                 self._prev_render_mode = False
+                try:
+                    self["scrollbar_track"].hide()
+                    self["scrollbar_thumb"].hide()
+                except Exception:
+                    pass
             self._render_tiles()
 
     def _render_tiles(self):
@@ -2616,6 +2692,7 @@ class StreamAnywhereGroupScreen(Screen):
         self["page_label"].setText(_b(count_str))
         self["webif_addr"].setText(getattr(self, "_webif_str", _b("")))
         self._update_legend()
+        _update_scrollbar(self, LIST_ROWS)
 
     def _clear_all_tiles(self):
         for i in range(TILES_PER_PAGE):
@@ -3024,7 +3101,20 @@ class StreamAnywhereGroupScreen(Screen):
             total = len(self._items)
             if total == 0:
                 return
-            self._list_sel = max(0, min(self._list_sel + direction * LIST_ROWS, total - 1))
+            cur_page = self._list_scroll // LIST_ROWS
+            if direction > 0:
+                next_scroll = (cur_page + 1) * LIST_ROWS
+                if next_scroll < total:
+                    self._list_scroll = next_scroll
+                    self._list_sel    = next_scroll
+                else:
+                    self._list_sel = total - 1
+            else:
+                if self._list_scroll > 0:
+                    self._list_scroll = max(0, (cur_page - 1) * LIST_ROWS)
+                    self._list_sel    = self._list_scroll
+                else:
+                    self._list_sel = 0
             self._render_list()
             return
         total = len(self._items)
