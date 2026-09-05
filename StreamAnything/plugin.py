@@ -57,6 +57,13 @@ def _has_native_hls():
         return bool(HAS_NATIVE_REFERER)
     except Exception:
         return False
+
+def _has_native_recording():
+    try:
+        from Plugins.SystemPlugins.ServiceApp.serviceapp_caps import HAS_NATIVE_RECORDING
+        return bool(HAS_NATIVE_RECORDING)
+    except Exception:
+        return False
 LOGO_DIR   = os.path.join(PLUGIN_DIR, "logos")
 
 try:
@@ -353,7 +360,7 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
     prefer_bq = _get_setting("prefer_best_quality", True)
     url = _resolve_special_url(url, prefer_bq)
 
-    if _has_native_hls():
+    if _has_native_recording():
         _start_native_recording(url, name, user_agent, duration_seconds, timer_id)
         return
 
