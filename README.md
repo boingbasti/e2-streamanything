@@ -7,7 +7,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 
 - **Streams und Ordner** – Streams können frei in Ordnern organisiert werden, im Plugin als Stream oder Ordner gekennzeichnet
 - **Kachelansicht** – übersichtliche 4×3-Kachelnavigation mit Logo, Name und Typ-Icon
-- **Listenansicht** – kompakte Listenansicht mit Logo, Name und Typ-Icon; umschaltbar per gelber Taste
+- **Listenansicht** – kompakte Listenansicht mit Logo, Name und Typ-Icon; umschaltbar per gelber Taste; Scrollbalken zeigt die aktuelle Position
 - **Logos** – eigene Logos für Streams und Ordner hochladbar (PNG oder JPG, max. 2 MB); Logo-URL wird gespeichert und beim Bearbeiten vorausgefüllt
 - **Sortieren** – Einträge per Fernbedienung umsortieren (rote Taste im Plugin)
 - **Stream-Einstellungen** – Player, User-Agent und HLS-Option pro Stream direkt im Plugin änderbar (Menü-Taste)
@@ -27,9 +27,9 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
   - **Auto** (Standard): verwendet exteplayer3 wenn ServiceApp installiert ist, sonst den Enigma2-Standard-Player
   - **exteplayer3 / gstplayer**: erzwingt den jeweiligen Player unabhängig von ServiceApp
 - **User-Agent** – pro Stream einstellbarer HTTP-User-Agent (z. B. für streams mit Zugriffsbeschränkung)
-- **Lokaler Playlist Server** – optionaler HLS-Fix pro Stream: lädt das Master-Manifest, wählt die beste Qualitätsstufe und übergibt dem Player eine lokale Playlist; löst Audioprobleme bei bestimmten öffentlich-rechtlichen HLS-Streams
+- **Lokaler Playlist Server** – optionaler HLS-Fix pro Stream: lädt das Master-Manifest, wählt die beste Qualitätsstufe und übergibt dem Player eine lokale Playlist; löst Audioprobleme bei bestimmten öffentlich-rechtlichen HLS-Streams. Bei [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) wird diese Option automatisch ausgeblendet, da die serviceapp die Audio-Spur direkt übernimmt
 - **Quell-Website** – optionaler Referer-Proxy pro Stream für HLS-Streams mit CDN-Hotlink-Schutz: leitet alle Anfragen über einen lokalen Proxy mit gesetztem Referer-Header weiter (Auto oder manuelle Angabe)
-- **Live-Aufnahme** – Streams im Hintergrund als HLS aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten
+- **Live-Aufnahme** – Streams im Hintergrund aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten. Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) werden alle Streamtypen als echter Enigma2-Timer aufgezeichnet; ohne diese serviceapp nur HLS-Streams (.m3u8)
 - **ServiceApp-Auto-Konfiguration** – optimale Einstellungen für Live-Streams werden automatisch gesetzt
 - **M3U-Export** – einzelne Ordner als M3U-Playlist exportieren (Button im WebIF am Ordner)
 - **Backup/Restore** – Stream-Konfiguration exportieren und importieren:
