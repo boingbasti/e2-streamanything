@@ -31,10 +31,12 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **Quell-Website** – optionaler Referer-Proxy pro Stream für HLS-Streams mit CDN-Hotlink-Schutz: leitet alle Anfragen über einen lokalen Proxy mit gesetztem Referer-Header weiter (Auto oder manuelle Angabe)
 - **Live-Aufnahme** – Streams im Hintergrund aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten. Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) werden alle Streamtypen als echter Enigma2-Timer aufgezeichnet; ohne diese serviceapp nur HLS-Streams (.m3u8)
 - **ServiceApp-Auto-Konfiguration** – optimale Einstellungen für Live-Streams werden automatisch gesetzt
+- **Bouquet-Export** – Streams und Ordner direkt als Enigma2-Bouquet in die Senderliste exportieren; Logos werden automatisch als Picons übernommen (erfordert [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti))
 - **M3U-Export** – einzelne Ordner als M3U-Playlist exportieren (Button im WebIF am Ordner)
 - **Backup/Restore** – Stream-Konfiguration exportieren und importieren:
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
   - **Einträge hinzufügen** – Backup wird zu den vorhandenen Einträgen hinzugefügt, Duplikate (gleiche ID) werden übersprungen
+- **Mehrfachauswahl im WebIF** – mehrere Streams gleichzeitig auswählen und in einen anderen Ordner verschieben (oben rechts im WebIF)
 - **WebIF** – vollständige Verwaltung über den Browser, erreichbar unter `http://<Box-IP>:8090`
 - **Mehrsprachig** – Oberfläche (Plugin und WebIF) auf Deutsch, Englisch oder Polnisch; automatisch nach Box-Systemsprache oder manuell in den Einstellungen wählbar
 
@@ -55,7 +57,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.7.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_1.8.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -108,13 +110,14 @@ Die **Menü-Taste** öffnet bei einem markierten Stream einen eigenen Optionen-S
 | User-Agent | Untermenü: (keiner), Android/Chrome, Windows/Chrome, iPhone/Safari, VLC |
 | Lokaler Playlist Server | Direkter Toggle EIN/AUS |
 | Quell-Website | Untermenü: AUS, Auto (generischer Referer) oder Website manuell angeben |
+| Als Bouquet exportieren | Stream direkt als Enigma2-Bouquet exportieren (nur sichtbar wenn [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) installiert ist und der Stream keine dynamische URL-Auflösung benötigt) |
 | Löschen | Stream löschen (mit Bestätigungsabfrage) |
 
 Änderungen an Player, User-Agent und HLS-Fix bleiben zunächst ausstehend. **Grüne Taste** speichert, **Rote Taste** oder **EXIT** bricht ab – bei ungespeicherten Änderungen erscheint eine Bestätigungsabfrage.
 
 #### Ordner-Optionen (Menü-Taste auf einem Ordner)
 
-Die **Menü-Taste** auf einem Ordner öffnet eine Bestätigungsabfrage zum Löschen des Ordners samt aller enthaltenen Streams.
+Die **Menü-Taste** auf einem Ordner bietet die Option, den Ordner als Enigma2-Bouquet zu exportieren (erfordert [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti)) oder den Ordner samt aller enthaltenen Streams zu löschen.
 
 #### Einstellungen (globale Plugin-Einstellungen)
 
@@ -148,7 +151,11 @@ Beim Anlegen oder Bearbeiten eines Streams innerhalb eines Ordners steht der But
 
 Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
 
-Über dem Eintrags-Liste stehen die Buttons **Alle einklappen** und **Alle ausklappen**, die alle Ordner gleichzeitig ein- oder ausklappen — sichtbar sobald mindestens ein Ordner vorhanden ist.
+Über der Eintrags-Liste stehen die Buttons **Alle einklappen** und **Alle ausklappen**, die alle Ordner gleichzeitig ein- oder ausklappen — sichtbar sobald mindestens ein Ordner vorhanden ist.
+
+Über den Button **Auswählen** (oben rechts) lässt sich ein Mehrfachauswahl-Modus aktivieren. Markierte Streams können damit in einen anderen Ordner verschoben werden. Drag & Drop bleibt im normalen Modus weiterhin verfügbar.
+
+Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) erscheinen an Ordnern und einzelnen Streams zusätzliche Buttons zum Bouquet-Export. Im unteren Bereich des WebIF lassen sich der Standard-Bouquet-Name und das Benennungsschema für Ordner-Bouquets einstellen.
 
 ## YouTube-Livestreams
 

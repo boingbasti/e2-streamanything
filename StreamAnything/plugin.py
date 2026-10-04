@@ -40,6 +40,7 @@ def _cached_pixmap(path):
 
 import streams as _streams
 import webif   as _webif
+import bouquet as _bouquet
 import youtube as _youtube
 import feratel as _feratel
 import skylinewebcams as _skyline
@@ -125,6 +126,8 @@ def _get_settings():
         ("webif_port",               _("WebIF Port"),                      "port"),
         ("debug_log",                _("Debug-Log"),                       "toggle"),
         ("language",                 _("Sprache"),                         "lang"),
+        ("bouquet_default_name",     _("Bouquet-Name"),                    "text"),
+        ("bouquet_by_folder",        _("Bouquets nach Ordnern benennen"),  "toggle"),
     ]
 
 
@@ -138,6 +141,8 @@ _SETTINGS_DEFAULTS = {
     "webif_autostart":          True,
     "debug_log":                False,
     "language":                 "auto",
+    "bouquet_default_name":     "StreamAnything",
+    "bouquet_by_folder":        True,
 }
 
 
@@ -177,6 +182,19 @@ def _resolve_special_url(url, prefer_bq):
         if resolved:
             url = resolved
     return url
+
+
+def _needs_resolver(url):
+    if not url:
+        return False
+    return (
+        _youtube.is_youtube(url)
+        or _feratel.is_feratel(url)
+        or _skyline.is_skylinewebcams(url)
+        or _earthtv.is_earthtv(url)
+        or _earthcam.is_earthcam(url)
+        or _magentamusik.is_magentamusik(url)
+    )
 
 
 _active_play_thread_running = False
@@ -1302,6 +1320,9 @@ class _SAChoiceScreen(Screen):
             self._ok()
 
     def _on_cancel(self):
+        if not self._on_save_fn:
+            self.close(None)
+            return
         has_changes = self._has_changes_fn() if self._has_changes_fn else self._moved
         if not has_changes:
             self.close(None)
@@ -1363,6 +1384,8 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
     ]
     if not _has_native_hls():
         choices.insert(2, (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))), "hls_fix"))
+    if _has_native_hls() and not _needs_resolver(item.get("url", "")):
+        choices.insert(-1, (_b(_("Als Bouquet exportieren")), "bouquet"))
 
     def on_ua(choice):
         if choice is None:
@@ -1432,6 +1455,8 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
                                      title=_b(_("Als Quell-Website ausgeben")), list=rchoices)
         elif choice[1] == "record":
             _open_record_duration_menu(session, item)
+        elif choice[1] == "bouquet":
+            _do_export_bouquet(session, [item])
         elif choice[1] == "delete" and delete_fn:
             _sa_confirm(session, _b(_("Stream löschen?")), on_delete_confirm)
 
@@ -1440,6 +1465,40 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
                              list=choices,
                              on_save_fn=_save,
                              has_changes_fn=_has_changes)
+
+
+def _do_export_bouquet(session, items):
+    from Screens.MessageBox import MessageBox as _MB
+    default_name = _get_setting("bouquet_default_name", _SETTINGS_DEFAULTS["bouquet_default_name"])
+
+    def _filter_folder(folder):
+        streams   = folder.get("streams", [])
+        filtered  = [s for s in streams if not _needs_resolver(s.get("url", ""))]
+        skipped   = len(streams) - len(filtered)
+        new_item  = dict(folder)
+        new_item["streams"] = filtered
+        return new_item, skipped
+
+    filtered_items = []
+    total_skipped  = 0
+    for item in items:
+        if item.get("type") == "folder":
+            fi, sk = _filter_folder(item)
+            filtered_items.append(fi)
+            total_skipped += sk
+        elif _needs_resolver(item.get("url", "")):
+            total_skipped += 1
+        else:
+            filtered_items.append(item)
+
+    ok, err = _bouquet.export_bouquet_items(filtered_items, default_name)
+    if ok:
+        msg = _("Bouquet exportiert.")
+        if total_skipped:
+            msg += " " + str(total_skipped) + " " + _("Stream(s) übersprungen.")
+        session.open(_MB, _b(msg), _MB.TYPE_INFO, timeout=5)
+    else:
+        session.open(_MB, _b(err or _("Fehler beim Export.")), _MB.TYPE_ERROR, timeout=6)
 
 
 def _open_record_duration_menu(session, item):
@@ -1568,6 +1627,8 @@ class StreamAnywhereSettingsScreen(Screen):
                 self._pending[key] = _streams.get_webif_port()
             elif kind == "lang":
                 self._pending[key] = _get_setting(key, "auto")
+            elif kind == "text":
+                self._pending[key] = _get_setting(key, _SETTINGS_DEFAULTS.get(key, ""))
         self._original = dict(self._pending)
 
         self._refresh()
@@ -1588,6 +1649,11 @@ class StreamAnywhereSettingsScreen(Screen):
             elif kind == "lang":
                 lv = self._pending.get(key, "auto")
                 self["s_value_%d" % i].setText(_b(_LANG_LABELS.get(lv, lv)))
+            elif kind == "text":
+                val = self._pending.get(key, _SETTINGS_DEFAULTS.get(key, ""))
+                if isinstance(val, bytes):
+                    val = val.decode("utf-8", "replace")
+                self["s_value_%d" % i].setText(_b(val))
             else:
                 self["s_value_%d" % i].setText(_b(""))
             if i == self._sel:
@@ -1636,6 +1702,19 @@ class StreamAnywhereSettingsScreen(Screen):
             self.session.openWithCallback(on_port, ChoiceBox,
                                           title=_b(_("WebIF Port wählen")),
                                           list=choices)
+        elif kind == "text":
+            cur = self._pending.get(key, _SETTINGS_DEFAULTS.get(key, ""))
+            if isinstance(cur, bytes):
+                cur = cur.decode("utf-8", "replace")
+            def on_text(result, key=key):
+                if result is not None:
+                    if isinstance(result, bytes):
+                        result = result.decode("utf-8", "replace")
+                    self._pending[key] = result.strip() or _SETTINGS_DEFAULTS.get(key, "")
+                    self._refresh()
+            self.session.openWithCallback(on_text, VirtualKeyBoard,
+                                          title=_b(label),
+                                          text=_b(cur))
 
     def _on_green(self):
         for key, label, kind in _get_settings():
@@ -1649,6 +1728,8 @@ class StreamAnywhereSettingsScreen(Screen):
                     _webif.start(new_port)
             elif kind == "lang":
                 _set_setting(key, self._pending.get(key, "auto"))
+            elif kind == "text":
+                _set_setting(key, self._pending.get(key, _SETTINGS_DEFAULTS.get(key, "")))
         if self._pending.get("debug_log", False):
             try:
                 open(_SA_DEBUG_FLAG, "w").close()
@@ -2130,7 +2211,23 @@ class StreamAnywhereScreen(Screen):
                     if self._sel >= max(1, page_count):
                         self._sel = max(0, page_count - 1)
                 self._render()
-            _sa_confirm(self.session, _b(_("Ordner und alle Streams löschen?")), on_delete_folder)
+
+            folder_choices = [(_b(_("Als Bouquet exportieren")), "bouquet")]
+            if not _bouquet._has_native():
+                folder_choices = []
+            folder_choices.append((_b(_("Löschen")), "delete"))
+
+            def on_folder_menu(choice, item=item):
+                if choice is None:
+                    return
+                if choice[1] == "bouquet":
+                    _do_export_bouquet(self.session, [item])
+                elif choice[1] == "delete":
+                    _sa_confirm(self.session, _b(_("Ordner und alle Streams löschen?")), on_delete_folder)
+
+            self.session.openWithCallback(on_folder_menu, _SAChoiceScreen,
+                                          title=_b(_u(item.get("name", ""))),
+                                          list=folder_choices)
             return
 
         def update(it):

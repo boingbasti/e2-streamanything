@@ -880,8 +880,9 @@ def resolve_stream_url(stream_url, user_agent="", prefer_best_quality=True, hls_
             _dbg("[player] native referer used: %s" % referer)
             sep = "&" if "|" in url_str else "|"
             url_str = url_str + sep + "Referer=" + referer
-        if prefer_best_quality and not hls_audio_fix:
-            url_str = _resolve_hls_best_variant(url_str, user_agent)
+        # ServiceApp löst HLS-Varianten und Audio-Groups selbst korrekt auf;
+        # _resolve_hls_best_variant() würde bei CMAF-Streams die Audio-Group-
+        # Verknüpfung verlieren und zu Stummton führen.
         return url_str, user_agent
 
     if referer:
@@ -917,7 +918,10 @@ def _build_ref(url, title, player, user_agent,
     elif player == "gstplayer":
         player_id = 5001
     elif player == "default":
-        player_id = 4097
+        if "|" in url_str and _has_serviceapp():
+            player_id = 5002
+        else:
+            player_id = 4097
     else:
         if is_live and _has_serviceapp():
             if autoconfigure_serviceapp:

@@ -556,3 +556,21 @@ msgstr "Please enter a start time."
 
 msgid "Anlegen fehlgeschlagen: "
 msgstr "Creation failed: "
+
+msgid "Als Bouquet exportieren"
+msgstr "Export as bouquet"
+
+msgid "Bouquet exportiert."
+msgstr "Bouquet exported."
+
+msgid "Bouquet-Name"
+msgstr "Bouquet name"
+
+msgid "Bouquets nach Ordnern benennen"
+msgstr "Name bouquets by folder"
+
+msgid "Stream(s) übersprungen."
+msgstr "stream(s) skipped."
+
+msgid "Fehler beim Export."
+msgstr "Export failed."

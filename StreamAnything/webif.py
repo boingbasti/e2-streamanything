@@ -166,6 +166,98 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_json({"ok": False, "error": str(e)}, 500)
 
+    def _handle_group_bouquet(self, group_id):
+        try:
+            import bouquet as _bouquet
+            import plugin  as _plugin
+            groups = _streams.get_groups()
+            folder = None
+            for g in groups:
+                if g.get("type") == "folder" and g.get("id") == group_id:
+                    folder = g
+                    break
+            if not folder:
+                self._send_json({"ok": False, "error": "Ordner nicht gefunden"}, 404)
+                return
+            all_streams = folder.get("streams", [])
+            ok_streams  = [s for s in all_streams if not _plugin._needs_resolver(s.get("url", ""))]
+            skipped     = len(all_streams) - len(ok_streams)
+            filtered    = dict(folder)
+            filtered["streams"] = ok_streams
+            default_name = _plugin._get_setting(
+                "bouquet_default_name",
+                _plugin._SETTINGS_DEFAULTS["bouquet_default_name"],
+            )
+            ok, err = _bouquet.export_bouquet_items([filtered], default_name)
+            self._send_json({"ok": ok, "error": err or "", "skipped": skipped})
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+
+    def _handle_stream_bouquet(self, stream_id):
+        try:
+            import bouquet as _bouquet
+            import plugin  as _plugin
+            cfg = _streams.get_config()
+            stream = None
+            for it in cfg.get("items", []):
+                if it.get("type") == "folder":
+                    for s in it.get("streams", []):
+                        if s.get("id") == stream_id:
+                            stream = s
+                            break
+                elif it.get("id") == stream_id:
+                    stream = it
+                if stream:
+                    break
+            if not stream:
+                self._send_json({"ok": False, "error": "Stream nicht gefunden"}, 404)
+                return
+            if _plugin._needs_resolver(stream.get("url", "")):
+                self._send_json({"ok": False, "error": "Resolver-Stream nicht exportierbar"}, 400)
+                return
+            default_name = _plugin._get_setting(
+                "bouquet_default_name",
+                _plugin._SETTINGS_DEFAULTS["bouquet_default_name"],
+            )
+            ok, err = _bouquet.export_bouquet_items([stream], default_name)
+            self._send_json({"ok": ok, "error": err or ""})
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+
+    def _handle_bouquet_all(self, override_name=None):
+        try:
+            import bouquet as _bouquet
+            import plugin  as _plugin
+            cfg       = _streams.get_config()
+            raw_items = cfg.get("items", [])
+            skipped   = 0
+            filtered_items = []
+            for it in raw_items:
+                if it.get("type") == "folder":
+                    fstreams = it.get("streams", [])
+                    ok_s     = [s for s in fstreams if not _plugin._needs_resolver(s.get("url", ""))]
+                    skipped += len(fstreams) - len(ok_s)
+                    f = dict(it)
+                    f["streams"] = ok_s
+                    filtered_items.append(f)
+                else:
+                    if _plugin._needs_resolver(it.get("url", "")):
+                        skipped += 1
+                    else:
+                        filtered_items.append(it)
+            default_name = override_name or _plugin._get_setting(
+                "bouquet_default_name",
+                _plugin._SETTINGS_DEFAULTS["bouquet_default_name"],
+            )
+            by_folder    = _plugin._get_setting(
+                "bouquet_by_folder",
+                _plugin._SETTINGS_DEFAULTS["bouquet_by_folder"],
+            )
+            ok, err = _bouquet.export_all(filtered_items, default_name, by_folder)
+            self._send_json({"ok": ok, "error": err or "", "skipped": skipped})
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+
     def _handle_import(self, parsed):
         qs   = parse_qs(parsed.query)
         mode = qs.get("mode", ["merge"])[0]
@@ -256,12 +348,47 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/config":
-            cfg = _streams.get_config()
-            self._send_json({"webif_port": cfg.get("webif_port", 8090)})
+            try:
+                import plugin as _plugin
+                self._send_json({
+                    "webif_port":          _streams.get_config().get("webif_port", 8090),
+                    "bouquet_default_name": _plugin._get_setting(
+                        "bouquet_default_name",
+                        _plugin._SETTINGS_DEFAULTS["bouquet_default_name"]),
+                    "bouquet_by_folder":    _plugin._get_setting(
+                        "bouquet_by_folder",
+                        _plugin._SETTINGS_DEFAULTS["bouquet_by_folder"]),
+                })
+            except Exception:
+                cfg = _streams.get_config()
+                self._send_json({"webif_port": cfg.get("webif_port", 8090)})
             return
 
         if path == "/api/items":
-            self._send_json(_streams.get_config().get("items", []))
+            items = _streams.get_config().get("items", [])
+            try:
+                import plugin as _plugin
+                def _annotate(stream):
+                    s = dict(stream)
+                    s["bouquet_ok"] = not _plugin._needs_resolver(s.get("url", ""))
+                    return s
+                annotated = []
+                for it in items:
+                    if it.get("type") == "folder":
+                        f = dict(it)
+                        f["streams"] = [_annotate(s) for s in it.get("streams", [])]
+                        annotated.append(f)
+                    else:
+                        annotated.append(_annotate(it))
+                items = annotated
+            except Exception:
+                pass
+            self._send_json(items)
+            return
+
+        if path.startswith("/api/streams/") and path.endswith("/bouquet"):
+            stream_id = path[len("/api/streams/"):-len("/bouquet")]
+            self._handle_stream_bouquet(stream_id)
             return
 
         if path == "/api/recording_timers":
@@ -285,6 +412,17 @@ class _Handler(BaseHTTPRequestHandler):
             self._handle_group_export(group_id)
             return
 
+        if path.startswith("/api/groups/") and path.endswith("/bouquet"):
+            group_id = path[len("/api/groups/"):-len("/bouquet")]
+            self._handle_group_bouquet(group_id)
+            return
+
+        if path == "/api/bouquet":
+            qs_b = parse_qs(parsed.query)
+            override_name = (qs_b.get("name") or [None])[0]
+            self._handle_bouquet_all(override_name)
+            return
+
         self.send_response(404)
         self.end_headers()
 
@@ -297,6 +435,14 @@ class _Handler(BaseHTTPRequestHandler):
             data = self._parse_json_body()
             if "webif_port" in data:
                 _streams.set_webif_port(int(data["webif_port"]))
+            try:
+                import plugin as _plugin
+                if "bouquet_default_name" in data:
+                    _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
+                if "bouquet_by_folder" in data:
+                    _plugin._set_setting("bouquet_by_folder", bool(data["bouquet_by_folder"]))
+            except Exception:
+                pass
             self._send_json({"ok": True})
             return
 
@@ -447,6 +593,19 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             ok = _streams.move_stream(stream_id, source_group_id, target_group_id, insert_before_id)
             self._send_json({"ok": ok})
+            return
+
+        if path == "/api/streams/bulk_move":
+            data    = self._parse_json_body()
+            items   = data.get("stream_ids", [])
+            target  = data.get("target_group") or None
+            moved   = 0
+            for item in items:
+                sid = item.get("id", "")
+                src = item.get("sourceGroup") or None
+                if sid and _streams.move_stream(sid, src, target, None):
+                    moved += 1
+            self._send_json({"ok": True, "moved": moved})
             return
 
         # ---- Groups: Gruppe hinzufügen ----
@@ -958,7 +1117,8 @@ var state = {
   editGroupId: null,
   m3uAllParsed: [],
   m3uStreams: [],
-  collapsedFolders: {}
+  collapsedFolders: {},
+  config: {bouquet_default_name: 'StreamAnything', bouquet_by_folder: true}
 };
 
 function xhr(method, url, body, cb){
@@ -994,6 +1154,12 @@ function load(){
     if(caps && caps.native_hls) _SA_CAPS.native_hls=true;
     _applyCaps();
   });
+  xhr('GET','/api/config',null,function(cfg){
+    if(cfg){
+      if(cfg.bouquet_default_name !== undefined) state.config.bouquet_default_name = cfg.bouquet_default_name;
+      if(cfg.bouquet_by_folder   !== undefined) state.config.bouquet_by_folder    = cfg.bouquet_by_folder;
+    }
+  });
   xhr('GET','/api/items',null,function(items){
     state.items = Array.isArray(items) ? items : [];
     render();
@@ -1023,7 +1189,31 @@ function renderRecordingsInPlace(){
 setInterval(loadRecordings, 3000);
 
 function render(){
-  document.getElementById('app').innerHTML = renderRecordingsSection() + renderAddForm() + renderItemList() + renderBackupSection();
+  document.getElementById('app').innerHTML = renderRecordingsSection() + renderAddForm() + renderItemList() + renderSettingsSection() + renderBackupSection();
+}
+
+function renderSettingsSection(){
+  var h = '<div class="section"><h2>Einstellungen</h2>';
+  h += '<div style="display:flex;flex-direction:column;gap:10px;max-width:420px">';
+  h += '<div class="form-row"><label style="white-space:nowrap;align-self:center;min-width:160px">Bouquet-Name</label>';
+  h += '<input id="cfg_bouquet_name" value="'+esc(state.config.bouquet_default_name)+'" style="flex:1"></div>';
+  h += '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
+  h += '<input type="checkbox" id="cfg_by_folder"'+(state.config.bouquet_by_folder?' checked':'')+' style="width:16px;height:16px">';
+  h += 'Bouquets nach Ordnern benennen</label></div>';
+  h += '<div><button class="btn btn-primary btn-sm" onclick="saveBouquetSettings()">Speichern</button></div>';
+  h += '</div></div>';
+  return h;
+}
+
+function saveBouquetSettings(){
+  var name = (document.getElementById('cfg_bouquet_name').value||'').trim() || 'StreamAnything';
+  var byFolder = !!document.getElementById('cfg_by_folder').checked;
+  state.config.bouquet_default_name = name;
+  state.config.bouquet_by_folder    = byFolder;
+  xhr('POST','/api/config',{bouquet_default_name: name, bouquet_by_folder: byFolder},function(r){
+    if(r&&r.ok) showToast('Einstellungen gespeichert.');
+    else alert('Fehler beim Speichern.');
+  });
 }
 
 function playerSelectHtml(id, val){
@@ -1082,21 +1272,96 @@ function renderAddForm(){
   return h;
 }
 
-// ---- Item-Liste ----
+// ---- Item-Liste / Mehrfachauswahl ----
+
+var _sel = {};
+var _selMode = false;
+
+function _selCount(){ return Object.keys(_sel).length; }
+
+function enterSelMode(){ _selMode=true; _sel={}; render(); }
+function exitSelMode(){ _selMode=false; _sel={}; render(); }
+
+function showToast(msg){
+  var t=document.createElement('div');
+  t.textContent=msg;
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#2ecc71;color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;z-index:999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none';
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';});
+  setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';setTimeout(function(){t.parentNode&&t.parentNode.removeChild(t);},300);},3000);
+}
+
+function toggleSel(id, srcGroup){
+  if(_sel[id]) delete _sel[id];
+  else _sel[id] = {id:id, sourceGroup:srcGroup||null};
+  // update item style in-place without full re-render
+  var el = document.querySelector('[data-id="'+id+'"]');
+  if(el){
+    if(_sel[id]){ el.classList.add('sel-active'); }
+    else { el.classList.remove('sel-active'); }
+  }
+  var cnt = document.getElementById('_sel_cnt');
+  if(cnt){
+    var n = _selCount();
+    cnt.textContent = n + ' Stream' + (n===1?'':'s') + ' ausgewählt';
+  }
+}
+
+function bulkMove(){
+  var target = document.getElementById('_sel_target').value || null;
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  if(!items.length) return;
+  xhr('POST','/api/streams/bulk_move',{stream_ids:items,target_group:target},function(r){
+    _selMode=false; _sel={};
+    load();
+    var n=r&&r.moved||items.length;
+    showToast(n+' '+(n===1?'Eintrag':'Einträge')+' verschoben.');
+  });
+}
 
 function renderItemList(){
-  var h = '<div class="section"><h2>Einträge ('+state.items.length+')</h2>';
+  var h = '<style>'
+    +'.sel-active{background:rgba(52,152,219,.18)!important;box-shadow:inset 3px 0 0 #3498db}'
+    +'[data-selmode] .item{cursor:pointer}'
+    +'[data-selmode] .drag-handle{display:none}'
+    +'[data-selmode] .item-actions{display:none}'
+    +'</style>';
+  h += '<div class="section"'
+    +(_selMode?' data-selmode="1"':'')
+    +'><h2>Einträge ('+state.items.length+')</h2>';
   if(state.items.length === 0){
     h += '<p class="empty">Noch keine Einträge.</p>';
   } else {
+    h += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">';
     var hasFolders = state.items.some(function(it){ return it.type==='folder'; });
-    if(hasFolders){
-      h += '<div style="text-align:right;margin-bottom:8px">';
-      h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
-      h += '&nbsp;&nbsp;';
-      h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
-      h += '</div>';
+    if(!_selMode){
+      if(hasFolders){
+        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
+        h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
+      }
+      if(_SA_CAPS.native_hls){
+        h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
+          + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
+          + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
+          + '</div>';
+      }
+      h += '<button class="btn btn-edit btn-sm" style="margin-left:auto" onclick="enterSelMode()">&#9745; Auswählen</button>';
+    } else {
+      var folders = (state.items||[]).filter(function(it){ return it.type==='folder'; });
+      var opts = '<option value="">Hauptliste</option>';
+      for(var fi=0;fi<folders.length;fi++) opts += '<option value="'+folders[fi].id+'">'+esc(folders[fi].name)+'</option>';
+      if(hasFolders){
+        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
+        h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
+      }
+      h += '<span id="_sel_cnt" style="font-weight:600">0 Streams ausgewählt</span>';
+      h += '<span style="color:var(--text2,#aaa)">&#8594; Verschieben nach:</span>';
+      h += '<select id="_sel_target" style="padding:4px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)">'+opts+'</select>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkMove()">Verschieben</button>';
+      h += '<button class="btn btn-sm" style="background:#555;margin-left:auto" onclick="exitSelMode()">&#10005; Abbrechen</button>';
     }
+    h += '</div>';
     h += '<ul class="item-list">';
     for(var i=0;i<state.items.length;i++){
       var item = state.items[i];
@@ -1110,8 +1375,10 @@ function renderItemList(){
 }
 
 function renderStreamItem(s, i){
-  var da='draggable="true" ondragstart="dStart(event,\''+s.id+'\',null)" ondragover="dOver(event,\''+s.id+'\',null)" ondragleave="dLeave(event)" ondrop="dDrop(event,\''+s.id+'\',null)" ondragend="dEnd(event)"';
-  var h = '<li class="item" data-id="'+s.id+'" '+da+'>';
+  var da=_selMode ? '' : 'draggable="true" ondragstart="dStart(event,\''+s.id+'\',null)" ondragover="dOver(event,\''+s.id+'\',null)" ondragleave="dLeave(event)" ondrop="dDrop(event,\''+s.id+'\',null)" ondragend="dEnd(event)"';
+  var selCls = (_sel[s.id]?' sel-active':'');
+  var selClick = _selMode ? ' onclick="toggleSel(\''+s.id+'\',null)"' : '';
+  var h = '<li class="item'+selCls+'" data-id="'+s.id+'" '+da+selClick+'>';
   h += '<span class="drag-handle" ontouchstart="tStart(event,\''+s.id+'\',null)">&#9776;</span>';
   if(s.logo) h += '<img class="item-logo" src="/'+esc(s.logo)+'" onerror="this.style.display=\'none\'">';
   else h += '<div class="item-logo-placeholder"></div>';
@@ -1120,6 +1387,7 @@ function renderStreamItem(s, i){
   h += '<div class="item-url">'+esc(s.url||'')+'</div>';
   h += '</div>';
   h += '<div class="item-actions">';
+  if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditStream(\''+s.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteStream(\''+s.id+'\')">&#10005;</button>';
@@ -1131,6 +1399,27 @@ function toggleFolder(id){
   state.collapsedFolders[id] = !state.collapsedFolders[id];
   render();
 }
+function _bouquetToast(r){
+  if(!r||!r.ok){ alert('Fehler: '+(r&&r.error||'Unbekannt')); return; }
+  var msg = 'Bouquet exportiert.';
+  if(r.skipped) msg += ' '+r.skipped+' Stream'+(r.skipped===1?' ':'s ')+'übersprungen.';
+  showToast(msg);
+}
+function exportBouquet(groupId){
+  xhr('GET','/api/groups/'+groupId+'/bouquet',null,_bouquetToast);
+}
+function exportStreamBouquet(streamId){
+  xhr('GET','/api/streams/'+streamId+'/bouquet',null,_bouquetToast);
+}
+
+function exportAllBouquets(){
+  if(!confirm('Alle Streams als Bouquets in die Enigma2-Senderliste exportieren?')) return;
+  var nameEl = document.getElementById('_bouquet_name_all');
+  var name = nameEl ? (nameEl.value||'').trim() : '';
+  var url = '/api/bouquet' + (name ? '?name='+encodeURIComponent(name) : '');
+  xhr('GET',url,null,_bouquetToast);
+}
+
 function collapseAll(){
   for(var i=0;i<state.items.length;i++){
     if(state.items[i].type==='folder') state.collapsedFolders[state.items[i].id]=true;
@@ -1152,7 +1441,8 @@ function renderFolderItem(g, gi){
   else h += '<div class="item-logo-placeholder"></div>';
   h += '<div class="item-name" style="font-weight:600">'+esc(g.name)+'<span class="badge badge-folder">Ordner</span></div>';
   h += '<div class="item-actions" style="margin-left:auto">';
-  h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="Exportieren">&#8595;</a>';
+  h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="M3U exportieren">&#8595;</a>';
+  if(_SA_CAPS.native_hls) h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditFolder(\''+g.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+g.id+'\')">&#10005;</button>';
   h += '</div></div>';
@@ -1164,8 +1454,10 @@ function renderFolderItem(g, gi){
     h += '<ul class="item-list">';
     for(var j=0;j<streams.length;j++){
       var s = streams[j];
-      var sda='draggable="true" ondragstart="dStart(event,\''+s.id+'\',\''+g.id+'\')" ondragover="dOver(event,\''+s.id+'\',\''+g.id+'\')" ondragleave="dLeave(event)" ondrop="dDrop(event,\''+s.id+'\',\''+g.id+'\')" ondragend="dEnd(event)"';
-      h += '<li class="item" data-id="'+s.id+'" '+sda+'>';
+      var sda=_selMode ? '' : 'draggable="true" ondragstart="dStart(event,\''+s.id+'\',\''+g.id+'\')" ondragover="dOver(event,\''+s.id+'\',\''+g.id+'\')" ondragleave="dLeave(event)" ondrop="dDrop(event,\''+s.id+'\',\''+g.id+'\')" ondragend="dEnd(event)"';
+      var sSelCls = (_sel[s.id]?' sel-active':'');
+      var sSelClick = _selMode ? ' onclick="toggleSel(\''+s.id+'\',\''+g.id+'\')"' : '';
+      h += '<li class="item'+sSelCls+'" data-id="'+s.id+'" '+sda+sSelClick+'>';
       h += '<span class="drag-handle" ontouchstart="tStart(event,\''+s.id+'\',\''+g.id+'\')">&#9776;</span>';
       if(s.logo) h += '<img class="item-logo" src="/'+esc(s.logo)+'" onerror="this.style.display=\'none\'">';
       else h += '<div class="item-logo-placeholder"></div>';
@@ -1174,6 +1466,7 @@ function renderFolderItem(g, gi){
       h += '<div class="item-url">'+esc(s.url||'')+'</div>';
       h += '</div>';
       h += '<div class="item-actions">';
+      if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
       h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="openEditFolderStream(\''+g.id+'\',\''+s.id+'\')">&#9998;</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="deleteFolderStream(\''+g.id+'\',\''+s.id+'\')">&#10005;</button>';

@@ -763,3 +763,24 @@ msgstr "Nie udało się utworzyć: "
 
 #~ msgid "Backup"
 #~ msgstr "Kopia zapasowa"
+
+msgid "Als Bouquet exportieren"
+msgstr "Export as bouquet"
+
+msgid "Bouquet exportiert."
+msgstr "Bouquet exported."
+
+msgid "Bouquet-Name"
+msgstr "Bouquet name"
+
+msgid "Bouquets nach Ordnern benennen"
+msgstr "Name bouquets by folder"
+
+msgid "Stream(s) übersprungen."
+msgstr "stream(s) skipped."
+
+msgid "Ungültige Startzeit."
+msgstr "Invalid start time."
+
+msgid "Fehler beim Export."
+msgstr "Export failed."
