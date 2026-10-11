@@ -2,7 +2,7 @@
 
 import os
 import threading
-from sa_locale import _
+from .sa_locale import _
 
 from Plugins.Plugin import PluginDescriptor
 from Screens.Screen import Screen
@@ -38,16 +38,16 @@ def _cached_pixmap(path):
             _pixmap_cache[path] = None
     return _pixmap_cache[path]
 
-import streams as _streams
-import webif   as _webif
-import bouquet as _bouquet
-import youtube as _youtube
-import feratel as _feratel
-import skylinewebcams as _skyline
-import earthtv as _earthtv
-import earthcam as _earthcam
-import magentamusik as _magentamusik
-from player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
+from . import streams as _streams
+from . import webif   as _webif
+from . import bouquet as _bouquet
+from . import youtube as _youtube
+from . import feratel as _feratel
+from . import skylinewebcams as _skyline
+from . import earthtv as _earthtv
+from . import earthcam as _earthcam
+from . import magentamusik as _magentamusik
+from .player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
 
 PLUGIN_DIR = os.path.dirname(__file__)
 
@@ -1684,7 +1684,7 @@ class StreamAnywhereSettingsScreen(Screen):
             cur = self._pending.get(key, "auto")
             nxt = _LANG_CYCLE[(_LANG_CYCLE.index(cur) + 1) % len(_LANG_CYCLE)] if cur in _LANG_CYCLE else "auto"
             self._pending[key] = nxt
-            import sa_locale as _sa_locale
+            from . import sa_locale as _sa_locale
             _sa_locale.reinit(nxt)
             self._refresh()
         elif kind == "port":

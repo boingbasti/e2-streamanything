@@ -18,7 +18,7 @@ def _load_catalog():
 
 def _saved_language():
     try:
-        import streams as _streams
+        from . import streams as _streams
         return _streams.get_config().get("settings", {}).get("language", "auto")
     except Exception:
         return "auto"

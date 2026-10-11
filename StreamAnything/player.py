@@ -100,7 +100,7 @@ class SAStreamPlayer(MoviePlayer):
 
     def __switch_bg(self, new_idx, url, name, player, user_agent, hls_fix, referer="", token=0):
         try:
-            import youtube as _yt
+            from . import youtube as _yt
             if _yt.is_youtube(url):
                 resolved = _yt.resolve(url, best_quality=self._prefer_best_quality)
                 if resolved:
@@ -108,7 +108,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import feratel as _ft
+            from . import feratel as _ft
             if _ft.is_feratel(url):
                 resolved = _ft.resolve(url)
                 if resolved:
@@ -116,7 +116,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import skylinewebcams as _sky
+            from . import skylinewebcams as _sky
             if _sky.is_skylinewebcams(url):
                 resolved = _sky.resolve(url)
                 if resolved:
@@ -124,7 +124,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import magentamusik as _mm
+            from . import magentamusik as _mm
             if _mm.is_magentamusik(url):
                 resolved = _mm.resolve(url)
                 if resolved:
@@ -132,7 +132,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import earthcam as _ec
+            from . import earthcam as _ec
             if _ec.is_earthcam(url):
                 resolved = _ec.resolve(url)
                 if resolved:
@@ -140,7 +140,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import earthtv as _etv
+            from . import earthtv as _etv
             if _etv.is_earthtv(url):
                 resolved = _etv.resolve(url)
                 if resolved:
@@ -537,7 +537,7 @@ def _capture_serviceapp_field_values(opts, ext3):
 
 def _load_serviceapp_backup():
     try:
-        import streams as _streams
+        from . import streams as _streams
         return _streams.get_config().get("settings", {}).get("serviceapp_backup")
     except Exception:
         return None
@@ -545,7 +545,7 @@ def _load_serviceapp_backup():
 
 def _save_serviceapp_backup(backup):
     try:
-        import streams as _streams
+        from . import streams as _streams
         cfg = _streams.get_config()
         cfg.setdefault("settings", {})["serviceapp_backup"] = backup
         _streams.save_config(cfg)
@@ -555,7 +555,7 @@ def _save_serviceapp_backup(backup):
 
 def _clear_serviceapp_backup():
     try:
-        import streams as _streams
+        from . import streams as _streams
         cfg = _streams.get_config()
         cfg.get("settings", {}).pop("serviceapp_backup", None)
         _streams.save_config(cfg)

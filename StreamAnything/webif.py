@@ -23,13 +23,13 @@ except ImportError:
 class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-import streams as _streams
+from . import streams as _streams
 try:
-    from plugin import PLUGIN_VERSION as _PLUGIN_VERSION
+    from .plugin import PLUGIN_VERSION as _PLUGIN_VERSION
 except Exception:
     _PLUGIN_VERSION = "?"
 
-from sa_locale import _ as _gettext
+from .sa_locale import _ as _gettext
 
 
 def _(txt):
@@ -168,8 +168,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_group_bouquet(self, group_id):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             groups = _streams.get_groups()
             folder = None
             for g in groups:
@@ -195,8 +195,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_stream_bouquet(self, stream_id):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             cfg = _streams.get_config()
             stream = None
             for it in cfg.get("items", []):
@@ -226,8 +226,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_bouquet_all(self, override_name=None):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             cfg       = _streams.get_config()
             raw_items = cfg.get("items", [])
             skipped   = 0
@@ -349,7 +349,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/api/config":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 self._send_json({
                     "webif_port":          _streams.get_config().get("webif_port", 8090),
                     "bouquet_default_name": _plugin._get_setting(
@@ -367,7 +367,7 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/api/items":
             items = _streams.get_config().get("items", [])
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 def _annotate(stream):
                     s = dict(stream)
                     s["bouquet_ok"] = not _plugin._needs_resolver(s.get("url", ""))
@@ -397,7 +397,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/api/recordings/active":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 self._send_json(_plugin._get_active_recordings_info())
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, 500)
@@ -436,7 +436,7 @@ class _Handler(BaseHTTPRequestHandler):
             if "webif_port" in data:
                 _streams.set_webif_port(int(data["webif_port"]))
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 if "bouquet_default_name" in data:
                     _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
                 if "bouquet_by_folder" in data:
@@ -502,7 +502,7 @@ class _Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 duration_seconds = None
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._start_recording(
                     {"name": name, "url": url, "user_agent": user_agent}, duration_seconds)
                 self._send_json({"ok": True})
@@ -514,7 +514,7 @@ class _Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/recordings/") and path.endswith("/cancel"):
             rec_id = path[len("/api/recordings/"):-len("/cancel")]
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 ok = _plugin._cancel_recording_by_id(rec_id)
                 self._send_json({"ok": ok})
             except Exception as e:
@@ -546,7 +546,7 @@ class _Handler(BaseHTTPRequestHandler):
                 duration = None
             timer = _streams.add_recording_timer(name, url, start_time, user_agent, duration)
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._register_wakeup_timer(timer["id"], timer["name"], timer["start_time"])
             except Exception:
                 pass
@@ -697,7 +697,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._unregister_wakeup_timer(timer_id)
                 _plugin._register_wakeup_timer(timer_id, timer["name"], timer["start_time"])
             except Exception:
@@ -787,7 +787,7 @@ class _Handler(BaseHTTPRequestHandler):
         # DELETE /api/recording_timers/<id>
         if len(parts) == 4 and parts[1] == "api" and parts[2] == "recording_timers":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._unregister_wakeup_timer(parts[3])
             except Exception:
                 pass
