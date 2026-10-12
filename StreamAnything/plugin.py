@@ -1038,10 +1038,10 @@ def _build_skin():
             '<widget name="hint_yellow" position="586,{ly}"  size="150,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<widget name="hint_ok"     position="586,{ly}"  size="190,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<eLabel backgroundColor="#1A0066FF" position="788,{py}" size="{pw},{ph}" zPosition="2" transparent="0"/>'
-            '<widget name="hint_blue"   position="806,{ly}"  size="160,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_menu"   position="1036,{ly}" size="280,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_info"   position="1338,{ly}" size="300,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
-            '<widget name="page_label"  position="1648,{ly}" size="242,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;28" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
+            '<widget name="hint_blue"   position="806,{ly}"  size="175,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_menu"   position="1000,{ly}" size="300,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_info"   position="1320,{ly}" size="370,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="page_label"  position="1710,{ly}" size="180,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;28" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
         ).format(ly=ly, lh=lh, py=pip_y, ph=pip_h, pw=pip_w, fs=fs)
     else:
         ly, lh = _LEGEND_Y, _LEGEND_H
@@ -1059,10 +1059,10 @@ def _build_skin():
             '<widget name="hint_yellow" position="362,{ly}"  size="100,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<widget name="hint_ok"     position="362,{ly}"  size="120,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<eLabel backgroundColor="#1A0066FF" position="488,{py}" size="{pw},{ph}" zPosition="2" transparent="0"/>'
-            '<widget name="hint_blue"   position="498,{ly}"  size="90,{lh}"  zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_menu"   position="608,{ly}"  size="188,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_info"   position="811,{ly}"  size="195,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
-            '<widget name="page_label"  position="1016,{ly}" size="230,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
+            '<widget name="hint_blue"   position="498,{ly}"  size="85,{lh}"  zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_menu"   position="590,{ly}"  size="200,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_info"   position="798,{ly}"  size="250,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="page_label"  position="1055,{ly}" size="191,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
         ).format(ly=ly, lh=lh, py=pip_y, ph=pip_h, pw=pip_w, fs=fs)
 
     tpad = 30 if IS_FHD else 20
