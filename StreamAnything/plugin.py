@@ -400,6 +400,19 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
         _start_native_recording(url, name, user_agent, duration_seconds, timer_id)
         return
 
+    url_check = url.decode("utf-8", "replace") if isinstance(url, bytes) else url
+    if not url_check.lower().split("?")[0].endswith(".m3u8"):
+        def _show_unsupported():
+            if _session:
+                from Screens.MessageBox import MessageBox as _MB
+                _session.open(_MB, _b(_("Aufnahme wird aktuell nur für HLS (.m3u8) Streams unterstützt.")), _MB.TYPE_ERROR, timeout=5)
+        try:
+            from twisted.internet import reactor
+            reactor.callFromThread(_show_unsupported)
+        except Exception:
+            _show_unsupported()
+        return
+
     if not os.path.isdir(RECORDING_DIR):
         try:
             os.makedirs(RECORDING_DIR)
@@ -421,6 +434,17 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
     with _recordings_lock:
         _active_recordings.append(rec)
     rec.start()
+
+    def _show_started():
+        if _session:
+            from Screens.MessageBox import MessageBox as _MB
+            dur_str = format_duration(duration_seconds) if duration_seconds else _("unbegrenzt")
+            _session.open(_MB, _b(_("Aufnahme gestartet:\n%s (%s)") % (_u(name), dur_str)), _MB.TYPE_INFO, timeout=4)
+    try:
+        from twisted.internet import reactor
+        reactor.callFromThread(_show_started)
+    except Exception:
+        _show_started()
 
 
 def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
@@ -498,6 +522,16 @@ def _on_recording_finished(rec, *args):
         except Exception:
             dur = 0
         _write_meta(rec.filepath, rec.title, dur)
+        try:
+            from twisted.internet import reactor
+            from Screens.MessageBox import MessageBox as _MB
+            msg = _b(_("Aufnahme beendet:\n%s") % _u(rec.title))
+            def _show():
+                if _session:
+                    _session.open(_MB, msg, _MB.TYPE_INFO, timeout=4)
+            reactor.callFromThread(_show)
+        except Exception:
+            pass
 
 
 def _cancel_recording(rec):
@@ -1525,7 +1559,7 @@ def _do_export_bouquet(session, items):
         session.open(_MB, _b(err or _("Fehler beim Export.")), _MB.TYPE_ERROR, timeout=6)
 
 
-def _open_record_duration_menu(session, item):
+def _open_record_duration_menu(session, item, on_started=None):
     presets = [
         (_("30 Minuten"),    30 * 60),
         (_("1 Stunde"),      60 * 60),
@@ -1548,6 +1582,8 @@ def _open_record_duration_menu(session, item):
         if minutes <= 0:
             return
         _start_recording(item, minutes * 60)
+        if callable(on_started):
+            on_started()
 
     def on_duration(choice):
         if choice is None:
@@ -1559,6 +1595,8 @@ def _open_record_duration_menu(session, item):
             _open_native_timer_editor(session, item)
         else:
             _start_recording(item, choice[1])
+            if callable(on_started):
+                on_started()
 
     session.openWithCallback(on_duration, _SAChoiceScreen,
                              title=_b(_("Aufnahmedauer wählen")), list=choices)
@@ -1838,7 +1876,7 @@ class StreamAnywhereScreen(Screen):
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
              "ChannelSelectBaseActions", "MenuActions", "InfoActions",
-             "MovielistSeekActions"],
+             "ChannelSelectEPGActions", "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
@@ -1857,6 +1895,8 @@ class StreamAnywhereScreen(Screen):
                 "blue":              self._key_blue,
                 "menu":              self._key_menu,
                 "info":              self._key_info,
+                "epg":               self._key_info,
+                "showEPGList":       self._key_info,
             },
             -1,
         )
@@ -2185,7 +2225,7 @@ class StreamAnywhereScreen(Screen):
         item = self._items[idx]
         if item.get("type") == "folder":
             return
-        _open_record_duration_menu(self.session, item)
+        _open_record_duration_menu(self.session, item, on_started=self._update_info_hint)
 
     def _key_info(self):
         self.session.open(StreamAnywhereRecordingsScreen)
@@ -2633,7 +2673,7 @@ class StreamAnywhereGroupScreen(Screen):
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
              "ChannelSelectBaseActions", "MenuActions", "InfoActions",
-             "MovielistSeekActions"],
+             "ChannelSelectEPGActions", "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
@@ -2652,6 +2692,8 @@ class StreamAnywhereGroupScreen(Screen):
                 "blue":              self._key_blue,
                 "menu":              self._key_menu,
                 "info":              self._key_info,
+                "epg":               self._key_info,
+                "showEPGList":       self._key_info,
             },
             -1,
         )
@@ -2977,7 +3019,7 @@ class StreamAnywhereGroupScreen(Screen):
         item = self._items[idx]
         if item.get("type") == "folder":
             return
-        _open_record_duration_menu(self.session, item)
+        _open_record_duration_menu(self.session, item, on_started=self._update_info_hint)
 
     def _key_info(self):
         self.session.open(StreamAnywhereRecordingsScreen)
