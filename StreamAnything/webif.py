@@ -41,8 +41,8 @@ except ImportError:
             if b"\r\n\r\n" not in chunk:
                 continue
             head, _, data = chunk.partition(b"\r\n\r\n")
-            cd = re.search(rb'\bname="([^"]+)"', head, re.IGNORECASE)
-            fn = re.search(rb'\bfilename="([^"]+)"', head, re.IGNORECASE)
+            cd = re.search(br'\bname="([^"]+)"', head, re.IGNORECASE)
+            fn = re.search(br'\bfilename="([^"]+)"', head, re.IGNORECASE)
             if cd:
                 name = cd.group(1).decode("utf-8")
                 filename = fn.group(1).decode("utf-8") if fn else None
