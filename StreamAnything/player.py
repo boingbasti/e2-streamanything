@@ -39,11 +39,11 @@ def _offline_ref(name=""):
 
 class SAStreamPlayer(MoviePlayer):
     ENABLE_RESUME_SUPPORT = False
+    skinName = ["MoviePlayer", "InfoBar"]
 
     def __init__(self, session, service, streams=None, stream_index=0,
                  autoconfigure_serviceapp=True, prefer_best_quality=True):
         MoviePlayer.__init__(self, session, service)
-        self.skinName = ["MoviePlayer", "InfoBar"]
         self._streams             = streams or []
         self._stream_index        = stream_index
         self._autoconfigure       = autoconfigure_serviceapp
@@ -916,6 +916,8 @@ def _build_ref(url, title, player, user_agent,
         url_str = url_str + sep + "User-Agent=" + user_agent
     url_bytes   = url_str.encode("utf-8") if not isinstance(url_str, bytes) else url_str
     title_bytes = title.encode("utf-8")   if not isinstance(title, bytes)   else title
+    url_str_s   = url_str.decode("utf-8", "replace") if isinstance(url_str, bytes) else url_str
+    title_str_s = title.decode("utf-8", "replace")   if isinstance(title, bytes)   else title
     if player == "exteplayer3":
         if autoconfigure_serviceapp and _has_serviceapp():
             _configure_serviceapp_for_live()
@@ -934,9 +936,13 @@ def _build_ref(url, title, player, user_agent,
             player_id = 5002
         else:
             player_id = 4097
-    _dbg("_build_ref player_id=%d url=%s" % (player_id, url_str))
-    ref = eServiceReference(player_id, 0, url_bytes)
-    ref.setName(title_bytes)
+    _dbg("_build_ref player_id=%d url=%s" % (player_id, url_str_s))
+    if _PY3:
+        ref = eServiceReference(player_id, 0, url_str_s)
+        ref.setName(title_str_s)
+    else:
+        ref = eServiceReference(player_id, 0, url_bytes)
+        ref.setName(title_bytes)
     return ref
 
 

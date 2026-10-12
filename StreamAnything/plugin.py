@@ -248,11 +248,19 @@ def _play_item_bg(session, item, idx, items, url):
         def _apply():
             global _active_play_thread_running
             _active_play_thread_running = False
-            play_resolved_stream(session, url_str, title=name, is_live=True,
-                                 player=player, user_agent=user_agent,
-                                 autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
-                                 prefer_best_quality=prefer_bq,
-                                 streams=items, stream_index=idx)
+            try:
+                play_resolved_stream(session, url_str, title=name, is_live=True,
+                                     player=player, user_agent=user_agent,
+                                     autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
+                                     prefer_best_quality=prefer_bq,
+                                     streams=items, stream_index=idx)
+            except Exception as e:
+                _dbg("[StreamAnything] play_resolved_stream failed: %s" % e)
+                try:
+                    import traceback
+                    _dbg(traceback.format_exc())
+                except Exception:
+                    pass
 
         try:
             from twisted.internet import reactor
@@ -434,8 +442,14 @@ def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
             from enigma import eServiceReference
             from RecordTimer import RecordTimerEntry
             from ServiceReference import ServiceReference
-            ref = eServiceReference(5002, 0, url_bytes)
-            ref.setName(name_bytes)
+            if _PY3:
+                ref_url  = url_str if isinstance(url_str, str) else url_str.decode("utf-8", "replace")
+                ref_name = name if isinstance(name, str) else name.decode("utf-8", "replace")
+            else:
+                ref_url  = url_bytes
+                ref_name = name_bytes
+            ref = eServiceReference(5002, 0, ref_url)
+            ref.setName(ref_name)
             entry = RecordTimerEntry(ServiceReference(ref), begin, end, timer_name_bytes, _b(""), None)
             NavigationInstance.instance.RecordTimer.record(entry)
             _dbg("Native Aufnahme gestartet: %s" % _u(name))
@@ -1823,8 +1837,8 @@ class StreamAnywhereScreen(Screen):
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
-             "ChannelSelectBaseActions", "MenuActions", "InfobarSeekActions",
-             "EPGSelectActions"],
+             "ChannelSelectBaseActions", "MenuActions", "InfoActions",
+             "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
@@ -2618,8 +2632,8 @@ class StreamAnywhereGroupScreen(Screen):
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
-             "ChannelSelectBaseActions", "MenuActions", "InfobarSeekActions",
-             "EPGSelectActions"],
+             "ChannelSelectBaseActions", "MenuActions", "InfoActions",
+             "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
