@@ -2,6 +2,8 @@
 import io
 import json
 import os
+import sys as _sys
+_PY3 = _sys.version_info[0] >= 3
 
 
 def _dbg(msg):
@@ -27,7 +29,10 @@ _OFFLINE_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "offli
 def _offline_ref(name=""):
     ref = eServiceReference(4097, 0, _OFFLINE_VIDEO)
     if name:
-        title = (name + " (Offline)").encode("utf-8") if isinstance(name, type(u"")) else (name + b" (Offline)")
+        if _PY3:
+            title = (name.decode("utf-8", "replace") if isinstance(name, bytes) else name) + " (Offline)"
+        else:
+            title = (name + " (Offline)").encode("utf-8") if isinstance(name, type(u"")) else (name + b" (Offline)")
         ref.setName(title)
     return ref
 
@@ -51,10 +56,10 @@ class SAStreamPlayer(MoviePlayer):
         if len(self._streams) > 1:
             from Components.ActionMap import ActionMap
             self["_sa_nav"] = ActionMap(
-                [b"ChannelSelectBaseActions"],
+                ["ChannelSelectBaseActions"],
                 {
-                    b"nextBouquet": lambda: self._switch_stream(1),
-                    b"prevBouquet": lambda: self._switch_stream(-1),
+                    "nextBouquet": lambda: self._switch_stream(1),
+                    "prevBouquet": lambda: self._switch_stream(-1),
                 },
                 -1,
             )
@@ -967,7 +972,8 @@ def _make_recording_filepath(title, save_dir):
     if isinstance(save_dir, bytes):
         save_dir = save_dir.decode("utf-8", "replace")
     filename = u"%s_%s.ts" % (safe_title[:80], _time.strftime("%Y%m%d_%H%M%S"))
-    return os.path.join(save_dir, filename).encode("utf-8")
+    path = os.path.join(save_dir, filename)
+    return path if _PY3 else path.encode("utf-8")
 
 
 def format_size(size_bytes):
@@ -1154,9 +1160,9 @@ class HLSRecorder(object):
             video_path = self.filepath
             audio_path = None
             if audio_url:
-                base = self.filepath[:-3] if self.filepath.endswith(b".ts") else self.filepath
-                video_path = base + b".video.ts"
-                audio_path = base + b".audio.ts"
+                base = self.filepath[:-3] if self.filepath.endswith(".ts") else self.filepath
+                video_path = base + ".video.ts"
+                audio_path = base + ".audio.ts"
 
             f_video = open(video_path, "wb")
             f_audio = open(audio_path, "wb") if audio_path else None

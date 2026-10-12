@@ -123,7 +123,7 @@ def _copy_picon(stream, picon_dir):
     sid  = _stream_sid(stream.get("id", ""))
     pid  = _player_id(stream)
     picon_name = "%d_0_1_%X_0_0_0_0_0_0.png" % (pid, sid)
-    pdir = picon_dir if isinstance(picon_dir, str) else picon_dir.decode("utf-8", "replace")
+    pdir = picon_dir.decode("utf-8", "replace") if isinstance(picon_dir, bytes) else picon_dir
     picon_path   = os.path.join(pdir, picon_name)
     picon_path_b = picon_path if isinstance(picon_path, bytes) else picon_path.encode("utf-8")
 
@@ -141,15 +141,16 @@ def _copy_picon(stream, picon_dir):
 def _ensure_in_bouquets_tv(filename):
     ref_line = '#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "%s" ORDER BY bouquet' % filename
     try:
-        btv_b = BOUQUETS_TV.encode("utf-8")
         try:
-            with open(btv_b, "r") as f:
+            import io as _io
+            with _io.open(BOUQUETS_TV, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
         except Exception:
             content = ""
         if filename not in content:
             content = content.rstrip("\n") + "\n" + ref_line + "\n"
-            with open(btv_b, "w") as f:
+            import io as _io
+            with _io.open(BOUQUETS_TV, "w", encoding="utf-8") as f:
                 f.write(content)
     except Exception:
         pass
@@ -223,7 +224,8 @@ def export_bouquet(bouquet_name, streams, picon_dir=None, reload=True):
 
     if os.path.isfile(filepath_b):
         try:
-            with open(filepath_b, "r") as f:
+            import io as _io
+            with _io.open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 existing = f.read()
         except Exception:
             existing = "#NAME " + bouquet_name + "\n"

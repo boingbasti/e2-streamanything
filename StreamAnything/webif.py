@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import cgi
 import io
 import json
 import os
@@ -18,6 +17,39 @@ except ImportError:
     from http.server import HTTPServer, BaseHTTPRequestHandler
     from socketserver import ThreadingMixIn
     from urllib.parse import parse_qs, urlparse
+
+
+try:
+    import cgi as _cgi_mod
+    def _parse_upload(fp, headers, ct):
+        return _cgi_mod.FieldStorage(
+            fp=fp, headers=headers,
+            environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": ct}
+        )
+except ImportError:
+    def _parse_upload(fp, headers, ct):
+        boundary_match = re.search(r'boundary=([^\s;]+)', ct)
+        if not boundary_match:
+            return {}
+        boundary = boundary_match.group(1).strip("\"'").encode("utf-8")
+        length = int(headers.get("Content-Length", 0)) if headers else 0
+        body = fp.read(length) if length > 0 else fp.read()
+        parts = {}
+        for chunk in body.split(b"--" + boundary)[1:]:
+            if chunk.startswith(b"--"):
+                break
+            if b"\r\n\r\n" not in chunk:
+                continue
+            head, _, data = chunk.partition(b"\r\n\r\n")
+            cd = re.search(rb'\bname="([^"]+)"', head, re.IGNORECASE)
+            fn = re.search(rb'\bfilename="([^"]+)"', head, re.IGNORECASE)
+            if cd:
+                name = cd.group(1).decode("utf-8")
+                filename = fn.group(1).decode("utf-8") if fn else None
+                if data.endswith(b"\r\n"):
+                    data = data[:-2]
+                parts[name] = type("_F", (), {"file": io.BytesIO(data), "filename": filename, "value": data})()
+        return parts
 
 
 class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -266,10 +298,10 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": False, "error": _("multipart erforderlich")}, 400)
             return
         try:
-            form  = cgi.FieldStorage(
-                fp=self.rfile, headers=self.headers,
-                environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": ct}
-            )
+            form  = _parse_upload(self.rfile, self.headers, ct)
+            if "file" not in form:
+                self._send_json({"ok": False, "error": _("Keine Datei hochgeladen")}, 400)
+                return
             data  = form["file"].file.read()
             zf    = zipfile.ZipFile(io.BytesIO(data))
             raw   = zf.read("streamanything.json").decode("utf-8")
@@ -451,12 +483,10 @@ class _Handler(BaseHTTPRequestHandler):
             ct = self.headers.get("Content-Type", "")
             if "multipart/form-data" in ct:
                 try:
-                    form = cgi.FieldStorage(
-                        fp=self.rfile,
-                        headers=self.headers,
-                        environ={"REQUEST_METHOD": "POST",
-                                 "CONTENT_TYPE": ct}
-                    )
+                    form = _parse_upload(self.rfile, self.headers, ct)
+                    if "file" not in form:
+                        self._send_json({"ok": False, "error": _("Keine Datei hochgeladen")}, 400)
+                        return
                     field = form["file"]
                     ext   = os.path.splitext(field.filename)[1].lower()
                     if ext not in (".png", ".jpg", ".jpeg"):

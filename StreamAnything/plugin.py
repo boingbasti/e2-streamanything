@@ -73,19 +73,29 @@ except Exception:
     IS_FHD = True
 
 
-def _b(val):
-    if isinstance(val, bytes):
-        return val
-    try:
-        return val.encode("utf-8")
-    except Exception:
-        return str(val)
+import sys as _sys
+_PY3 = _sys.version_info[0] >= 3
 
+if _PY3:
+    def _b(val):
+        if isinstance(val, bytes):
+            return val.decode("utf-8", "replace")
+        return str(val) if val is not None else ""
 
-def _u(val):
-    if isinstance(val, bytes):
-        return val.decode("utf-8", "replace")
-    return val
+    def _u(val):
+        if isinstance(val, bytes):
+            return val.decode("utf-8", "replace")
+        return str(val) if val is not None else ""
+else:
+    def _b(val):
+        if isinstance(val, unicode):
+            return val.encode("utf-8")
+        return str(val) if val is not None else ""
+
+    def _u(val):
+        if isinstance(val, str):
+            return val.decode("utf-8", "replace")
+        return unicode(val) if val is not None else u""
 
 
 _SA_DEBUG_FLAG = "/tmp/sa_debug"
@@ -3348,14 +3358,14 @@ def autostart(reason, **kwargs):
 def Plugins(**kwargs):
     return [
         PluginDescriptor(
-            name        = b"StreamAnything",
+            name        = "StreamAnything",
             description = _b(_("Eigene Streams - konfigurierbar per WebIF")),
             where       = PluginDescriptor.WHERE_PLUGINMENU,
-            icon        = b"plugin.png",
+            icon        = "plugin.png",
             fnc         = main,
         ),
         PluginDescriptor(
-            name  = b"StreamAnything",
+            name  = "StreamAnything",
             where = PluginDescriptor.WHERE_AUTOSTART,
             fnc   = autostart,
         ),
