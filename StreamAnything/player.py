@@ -883,7 +883,7 @@ def resolve_stream_url(stream_url, user_agent="", prefer_best_quality=True, hls_
             if referer == "auto":
                 referer = "https://www.ard.de/"
             _dbg("[player] native referer used: %s" % referer)
-            sep = "&" if "|" in url_str else "|"
+            sep = "&" if ("#" in url_str or "|" in url_str) else "#"
             url_str = url_str + sep + "Referer=" + referer
         # ServiceApp löst HLS-Varianten und Audio-Groups selbst korrekt auf;
         # _resolve_hls_best_variant() würde bei CMAF-Streams die Audio-Group-
@@ -912,7 +912,7 @@ def _build_ref(url, title, player, user_agent,
     # Hintergrundthread aufgerufen haben.
     url_str = url.decode("utf-8", "replace") if isinstance(url, bytes) else url
     if user_agent:
-        sep = "&" if "|" in url_str else "|"
+        sep = "&" if ("#" in url_str or "|" in url_str) else "#"
         url_str = url_str + sep + "User-Agent=" + user_agent
     url_bytes   = url_str.encode("utf-8") if not isinstance(url_str, bytes) else url_str
     title_bytes = title.encode("utf-8")   if not isinstance(title, bytes)   else title
@@ -925,7 +925,7 @@ def _build_ref(url, title, player, user_agent,
     elif player == "gstplayer":
         player_id = 5001
     elif player == "default":
-        if "|" in url_str and _has_serviceapp():
+        if ("#" in url_str or "|" in url_str) and _has_serviceapp():
             player_id = 5002
         else:
             player_id = 4097

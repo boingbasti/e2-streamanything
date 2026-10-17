@@ -14,6 +14,13 @@ def _has_native():
         return False
 
 
+def _has_serviceapp():
+    return (
+        os.path.exists("/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+        or os.path.exists("/usr/lib64/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+    )
+
+
 def _bouquet_slug(value):
     if isinstance(value, bytes):
         name = value.decode("utf-8", "replace")
@@ -53,7 +60,10 @@ def _encode_param(val):
 
 
 def _player_id(stream):
-    if stream.get("player") == "gstplayer":
+    player = stream.get("player", "")
+    if player == "default" or not _has_serviceapp():
+        return 4097
+    if player == "gstplayer":
         return 5001
     return 5002
 
@@ -83,7 +93,7 @@ def _build_ref_line(stream, sid):
         param_parts.append("User-Agent=" + _encode_param(user_agent))
     if referer:
         param_parts.append("Referer=" + _encode_param(referer))
-    params = ("|" + "&".join(param_parts)) if param_parts else ""
+    params = ("#" + "&".join(param_parts)) if param_parts else ""
 
     pid = _player_id(stream)
     return "#SERVICE %d:0:1:%X:0:0:0:0:0:0:%s%s:%s" % (pid, sid, enc_url, params, name)
@@ -256,8 +266,6 @@ def export_bouquet_items(items, default_name):
     """items: Liste aus Streams und/oder Ordnern (wie aus dem Plugin-Menü).
     Ordner werden mit ihrem Namen als Bouquet exportiert; einzelne Streams
     landen im Standard-Bouquet (default_name)."""
-    if not _has_native():
-        return False, "serviceapp nicht verfügbar"
     picon_dir   = _get_picon_dir()
     root_streams = []
     for item in items:
@@ -279,8 +287,6 @@ def export_folder(folder_item, default_name):
 
 
 def export_all(all_items, default_name, by_folder):
-    if not _has_native():
-        return False, "serviceapp nicht verfügbar"
     if isinstance(default_name, bytes):
         default_name = default_name.decode("utf-8", "replace")
 

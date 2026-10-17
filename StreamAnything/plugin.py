@@ -1442,7 +1442,7 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
     ]
     if not _has_native_hls():
         choices.insert(2, (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))), "hls_fix"))
-    if _has_native_hls() and not _needs_resolver(item.get("url", "")):
+    if not _needs_resolver(item.get("url", "")):
         choices.insert(-1, (_b(_("Als Bouquet exportieren")), "bouquet"))
 
     def on_ua(choice):
@@ -2277,8 +2277,6 @@ class StreamAnywhereScreen(Screen):
                 self._render()
 
             folder_choices = [(_b(_("Als Bouquet exportieren")), "bouquet")]
-            if not _bouquet._has_native():
-                folder_choices = []
             folder_choices.append((_b(_("Löschen")), "delete"))
 
             def on_folder_menu(choice, item=item):

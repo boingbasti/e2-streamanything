@@ -1370,12 +1370,10 @@ function renderItemList(){
         h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
         h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
       }
-      if(_SA_CAPS.native_hls){
-        h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
-          + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
-          + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
-          + '</div>';
-      }
+      h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
+        + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
+        + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
+        + '</div>';
       h += '<button class="btn btn-edit btn-sm" style="margin-left:auto" onclick="enterSelMode()">&#9745; Auswählen</button>';
     } else {
       var folders = (state.items||[]).filter(function(it){ return it.type==='folder'; });
@@ -1417,7 +1415,7 @@ function renderStreamItem(s, i){
   h += '<div class="item-url">'+esc(s.url||'')+'</div>';
   h += '</div>';
   h += '<div class="item-actions">';
-  if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditStream(\''+s.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteStream(\''+s.id+'\')">&#10005;</button>';
@@ -1472,7 +1470,7 @@ function renderFolderItem(g, gi){
   h += '<div class="item-name" style="font-weight:600">'+esc(g.name)+'<span class="badge badge-folder">Ordner</span></div>';
   h += '<div class="item-actions" style="margin-left:auto">';
   h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="M3U exportieren">&#8595;</a>';
-  if(_SA_CAPS.native_hls) h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditFolder(\''+g.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+g.id+'\')">&#10005;</button>';
   h += '</div></div>';
@@ -1496,7 +1494,7 @@ function renderFolderItem(g, gi){
       h += '<div class="item-url">'+esc(s.url||'')+'</div>';
       h += '</div>';
       h += '<div class="item-actions">';
-      if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+      if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
       h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="openEditFolderStream(\''+g.id+'\',\''+s.id+'\')">&#9998;</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="deleteFolderStream(\''+g.id+'\',\''+s.id+'\')">&#10005;</button>';
