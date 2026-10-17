@@ -1512,7 +1512,7 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
             session.openWithCallback(on_referer_choice, _SAChoiceScreen,
                                      title=_b(_("Als Quell-Website ausgeben")), list=rchoices)
         elif choice[1] == "record":
-            _open_record_duration_menu(session, item)
+            _open_record_duration_menu(session, item, on_started=refresh_cb)
         elif choice[1] == "bouquet":
             _do_export_bouquet(session, [item])
         elif choice[1] == "delete" and delete_fn:
