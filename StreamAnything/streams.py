@@ -462,7 +462,7 @@ def save_logo_bytes(data, filename=None):
                 f.write(data)
         # Plugin-seitigen Pixmap-Cache bei ersetzter Datei ungültig machen
         try:
-            import plugin as _plugin
+            from . import plugin as _plugin
             _plugin._pixmap_cache.pop(path, None)
         except Exception:
             pass

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import cgi
 import io
 import json
 import os
@@ -20,16 +19,49 @@ except ImportError:
     from urllib.parse import parse_qs, urlparse
 
 
+try:
+    import cgi as _cgi_mod
+    def _parse_upload(fp, headers, ct):
+        return _cgi_mod.FieldStorage(
+            fp=fp, headers=headers,
+            environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": ct}
+        )
+except ImportError:
+    def _parse_upload(fp, headers, ct):
+        boundary_match = re.search(r'boundary=([^\s;]+)', ct)
+        if not boundary_match:
+            return {}
+        boundary = boundary_match.group(1).strip("\"'").encode("utf-8")
+        length = int(headers.get("Content-Length", 0)) if headers else 0
+        body = fp.read(length) if length > 0 else fp.read()
+        parts = {}
+        for chunk in body.split(b"--" + boundary)[1:]:
+            if chunk.startswith(b"--"):
+                break
+            if b"\r\n\r\n" not in chunk:
+                continue
+            head, _, data = chunk.partition(b"\r\n\r\n")
+            cd = re.search(br'\bname="([^"]+)"', head, re.IGNORECASE)
+            fn = re.search(br'\bfilename="([^"]+)"', head, re.IGNORECASE)
+            if cd:
+                name = cd.group(1).decode("utf-8")
+                filename = fn.group(1).decode("utf-8") if fn else None
+                if data.endswith(b"\r\n"):
+                    data = data[:-2]
+                parts[name] = type("_F", (), {"file": io.BytesIO(data), "filename": filename, "value": data})()
+        return parts
+
+
 class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-import streams as _streams
+from . import streams as _streams
 try:
-    from plugin import PLUGIN_VERSION as _PLUGIN_VERSION
+    from .plugin import PLUGIN_VERSION as _PLUGIN_VERSION
 except Exception:
     _PLUGIN_VERSION = "?"
 
-from sa_locale import _ as _gettext
+from .sa_locale import _ as _gettext
 
 
 def _(txt):
@@ -168,8 +200,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_group_bouquet(self, group_id):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             groups = _streams.get_groups()
             folder = None
             for g in groups:
@@ -195,8 +227,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_stream_bouquet(self, stream_id):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             cfg = _streams.get_config()
             stream = None
             for it in cfg.get("items", []):
@@ -226,8 +258,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle_bouquet_all(self, override_name=None):
         try:
-            import bouquet as _bouquet
-            import plugin  as _plugin
+            from . import bouquet as _bouquet
+            from . import plugin  as _plugin
             cfg       = _streams.get_config()
             raw_items = cfg.get("items", [])
             skipped   = 0
@@ -266,10 +298,10 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": False, "error": _("multipart erforderlich")}, 400)
             return
         try:
-            form  = cgi.FieldStorage(
-                fp=self.rfile, headers=self.headers,
-                environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": ct}
-            )
+            form  = _parse_upload(self.rfile, self.headers, ct)
+            if "file" not in form:
+                self._send_json({"ok": False, "error": _("Keine Datei hochgeladen")}, 400)
+                return
             data  = form["file"].file.read()
             zf    = zipfile.ZipFile(io.BytesIO(data))
             raw   = zf.read("streamanything.json").decode("utf-8")
@@ -349,7 +381,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/api/config":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 self._send_json({
                     "webif_port":          _streams.get_config().get("webif_port", 8090),
                     "bouquet_default_name": _plugin._get_setting(
@@ -367,7 +399,7 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/api/items":
             items = _streams.get_config().get("items", [])
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 def _annotate(stream):
                     s = dict(stream)
                     s["bouquet_ok"] = not _plugin._needs_resolver(s.get("url", ""))
@@ -397,7 +429,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/api/recordings/active":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 self._send_json(_plugin._get_active_recordings_info())
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, 500)
@@ -436,7 +468,7 @@ class _Handler(BaseHTTPRequestHandler):
             if "webif_port" in data:
                 _streams.set_webif_port(int(data["webif_port"]))
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 if "bouquet_default_name" in data:
                     _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
                 if "bouquet_by_folder" in data:
@@ -451,12 +483,10 @@ class _Handler(BaseHTTPRequestHandler):
             ct = self.headers.get("Content-Type", "")
             if "multipart/form-data" in ct:
                 try:
-                    form = cgi.FieldStorage(
-                        fp=self.rfile,
-                        headers=self.headers,
-                        environ={"REQUEST_METHOD": "POST",
-                                 "CONTENT_TYPE": ct}
-                    )
+                    form = _parse_upload(self.rfile, self.headers, ct)
+                    if "file" not in form:
+                        self._send_json({"ok": False, "error": _("Keine Datei hochgeladen")}, 400)
+                        return
                     field = form["file"]
                     ext   = os.path.splitext(field.filename)[1].lower()
                     if ext not in (".png", ".jpg", ".jpeg"):
@@ -502,7 +532,7 @@ class _Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 duration_seconds = None
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._start_recording(
                     {"name": name, "url": url, "user_agent": user_agent}, duration_seconds)
                 self._send_json({"ok": True})
@@ -514,7 +544,7 @@ class _Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/recordings/") and path.endswith("/cancel"):
             rec_id = path[len("/api/recordings/"):-len("/cancel")]
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 ok = _plugin._cancel_recording_by_id(rec_id)
                 self._send_json({"ok": ok})
             except Exception as e:
@@ -546,7 +576,7 @@ class _Handler(BaseHTTPRequestHandler):
                 duration = None
             timer = _streams.add_recording_timer(name, url, start_time, user_agent, duration)
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._register_wakeup_timer(timer["id"], timer["name"], timer["start_time"])
             except Exception:
                 pass
@@ -697,7 +727,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._unregister_wakeup_timer(timer_id)
                 _plugin._register_wakeup_timer(timer_id, timer["name"], timer["start_time"])
             except Exception:
@@ -787,7 +817,7 @@ class _Handler(BaseHTTPRequestHandler):
         # DELETE /api/recording_timers/<id>
         if len(parts) == 4 and parts[1] == "api" and parts[2] == "recording_timers":
             try:
-                import plugin as _plugin
+                from . import plugin as _plugin
                 _plugin._unregister_wakeup_timer(parts[3])
             except Exception:
                 pass
@@ -1340,12 +1370,10 @@ function renderItemList(){
         h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
         h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
       }
-      if(_SA_CAPS.native_hls){
-        h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
-          + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
-          + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
-          + '</div>';
-      }
+      h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
+        + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
+        + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
+        + '</div>';
       h += '<button class="btn btn-edit btn-sm" style="margin-left:auto" onclick="enterSelMode()">&#9745; Auswählen</button>';
     } else {
       var folders = (state.items||[]).filter(function(it){ return it.type==='folder'; });
@@ -1387,7 +1415,7 @@ function renderStreamItem(s, i){
   h += '<div class="item-url">'+esc(s.url||'')+'</div>';
   h += '</div>';
   h += '<div class="item-actions">';
-  if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditStream(\''+s.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteStream(\''+s.id+'\')">&#10005;</button>';
@@ -1442,7 +1470,7 @@ function renderFolderItem(g, gi){
   h += '<div class="item-name" style="font-weight:600">'+esc(g.name)+'<span class="badge badge-folder">Ordner</span></div>';
   h += '<div class="item-actions" style="margin-left:auto">';
   h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="M3U exportieren">&#8595;</a>';
-  if(_SA_CAPS.native_hls) h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditFolder(\''+g.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+g.id+'\')">&#10005;</button>';
   h += '</div></div>';
@@ -1466,7 +1494,7 @@ function renderFolderItem(g, gi){
       h += '<div class="item-url">'+esc(s.url||'')+'</div>';
       h += '</div>';
       h += '<div class="item-actions">';
-      if(_SA_CAPS.native_hls && s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+      if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
       h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="openEditFolderStream(\''+g.id+'\',\''+s.id+'\')">&#9998;</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="deleteFolderStream(\''+g.id+'\',\''+s.id+'\')">&#10005;</button>';

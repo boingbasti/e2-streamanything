@@ -39,6 +39,7 @@ fi
 
 POSTINST_SCRIPT = f"""#!/bin/sh
 rm -f {INSTALL_PATH}/*.pyo {INSTALL_PATH}/*.pyc
+rm -rf {INSTALL_PATH}/__pycache__
 LOGO_DIR="{INSTALL_PATH}/logos"
 BACKUP_DIR="/tmp/streamanything_logo_backup"
 if [ -d "$BACKUP_DIR" ]; then

@@ -2,6 +2,8 @@
 import io
 import json
 import os
+import sys as _sys
+_PY3 = _sys.version_info[0] >= 3
 
 
 def _dbg(msg):
@@ -27,18 +29,21 @@ _OFFLINE_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "offli
 def _offline_ref(name=""):
     ref = eServiceReference(4097, 0, _OFFLINE_VIDEO)
     if name:
-        title = (name + " (Offline)").encode("utf-8") if isinstance(name, type(u"")) else (name + b" (Offline)")
+        if _PY3:
+            title = (name.decode("utf-8", "replace") if isinstance(name, bytes) else name) + " (Offline)"
+        else:
+            title = (name + " (Offline)").encode("utf-8") if isinstance(name, type(u"")) else (name + b" (Offline)")
         ref.setName(title)
     return ref
 
 
 class SAStreamPlayer(MoviePlayer):
     ENABLE_RESUME_SUPPORT = False
+    skinName = ["MoviePlayer", "InfoBar"]
 
     def __init__(self, session, service, streams=None, stream_index=0,
                  autoconfigure_serviceapp=True, prefer_best_quality=True):
         MoviePlayer.__init__(self, session, service)
-        self.skinName = ["MoviePlayer", "InfoBar"]
         self._streams             = streams or []
         self._stream_index        = stream_index
         self._autoconfigure       = autoconfigure_serviceapp
@@ -51,10 +56,10 @@ class SAStreamPlayer(MoviePlayer):
         if len(self._streams) > 1:
             from Components.ActionMap import ActionMap
             self["_sa_nav"] = ActionMap(
-                [b"ChannelSelectBaseActions"],
+                ["ChannelSelectBaseActions"],
                 {
-                    b"nextBouquet": lambda: self._switch_stream(1),
-                    b"prevBouquet": lambda: self._switch_stream(-1),
+                    "nextBouquet": lambda: self._switch_stream(1),
+                    "prevBouquet": lambda: self._switch_stream(-1),
                 },
                 -1,
             )
@@ -100,7 +105,7 @@ class SAStreamPlayer(MoviePlayer):
 
     def __switch_bg(self, new_idx, url, name, player, user_agent, hls_fix, referer="", token=0):
         try:
-            import youtube as _yt
+            from . import youtube as _yt
             if _yt.is_youtube(url):
                 resolved = _yt.resolve(url, best_quality=self._prefer_best_quality)
                 if resolved:
@@ -108,7 +113,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import feratel as _ft
+            from . import feratel as _ft
             if _ft.is_feratel(url):
                 resolved = _ft.resolve(url)
                 if resolved:
@@ -116,7 +121,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import skylinewebcams as _sky
+            from . import skylinewebcams as _sky
             if _sky.is_skylinewebcams(url):
                 resolved = _sky.resolve(url)
                 if resolved:
@@ -124,7 +129,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import magentamusik as _mm
+            from . import magentamusik as _mm
             if _mm.is_magentamusik(url):
                 resolved = _mm.resolve(url)
                 if resolved:
@@ -132,7 +137,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import earthcam as _ec
+            from . import earthcam as _ec
             if _ec.is_earthcam(url):
                 resolved = _ec.resolve(url)
                 if resolved:
@@ -140,7 +145,7 @@ class SAStreamPlayer(MoviePlayer):
         except Exception:
             pass
         try:
-            import earthtv as _etv
+            from . import earthtv as _etv
             if _etv.is_earthtv(url):
                 resolved = _etv.resolve(url)
                 if resolved:
@@ -195,12 +200,15 @@ class SAStreamPlayer(MoviePlayer):
 
 
 def _has_serviceapp():
-    return os.path.exists("/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+    return (
+        os.path.exists("/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+        or os.path.exists("/usr/lib64/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+    )
 
 
 def _has_new_exteplayer3():
-    # exteplayer3 >= v181 (feedplus/manuell) bringt eigene Libs in /usr/lib/exteplayer3_deps/
-    return os.path.isdir("/usr/lib/exteplayer3_deps")
+    # VTi-Paket legt /usr/lib/exteplayer3_deps an; openATV/Py3 linkt direkt gegen System-Libs
+    return os.path.isdir("/usr/lib/exteplayer3_deps") or _PY3
 
 
 def _resolve_hls_best_variant(url, user_agent=""):
@@ -222,6 +230,12 @@ def _resolve_hls_best_variant(url, user_agent=""):
         _dbg("m3u8 fetched effective_url=%s len=%d has_stream_inf=%s" % (
             effective_url, len(content), "#EXT-X-STREAM-INF" in content))
         if "#EXT-X-STREAM-INF" not in content:
+            return url
+        if "#EXT-X-MEDIA" in content and "TYPE=AUDIO" in content:
+            _dbg("m3u8 has separate #EXT-X-MEDIA audio tracks, using _build_local_playlist")
+            local_url = _build_local_playlist(url, user_agent)
+            if local_url:
+                return local_url
             return url
         best_bw, best_url = -1, None
         lines = content.splitlines()
@@ -537,7 +551,7 @@ def _capture_serviceapp_field_values(opts, ext3):
 
 def _load_serviceapp_backup():
     try:
-        import streams as _streams
+        from . import streams as _streams
         return _streams.get_config().get("settings", {}).get("serviceapp_backup")
     except Exception:
         return None
@@ -545,7 +559,7 @@ def _load_serviceapp_backup():
 
 def _save_serviceapp_backup(backup):
     try:
-        import streams as _streams
+        from . import streams as _streams
         cfg = _streams.get_config()
         cfg.setdefault("settings", {})["serviceapp_backup"] = backup
         _streams.save_config(cfg)
@@ -555,7 +569,7 @@ def _save_serviceapp_backup(backup):
 
 def _clear_serviceapp_backup():
     try:
-        import streams as _streams
+        from . import streams as _streams
         cfg = _streams.get_config()
         cfg.get("settings", {}).pop("serviceapp_backup", None)
         _streams.save_config(cfg)
@@ -878,7 +892,7 @@ def resolve_stream_url(stream_url, user_agent="", prefer_best_quality=True, hls_
             if referer == "auto":
                 referer = "https://www.ard.de/"
             _dbg("[player] native referer used: %s" % referer)
-            sep = "&" if "|" in url_str else "|"
+            sep = "&" if ("#" in url_str or "|" in url_str) else "#"
             url_str = url_str + sep + "Referer=" + referer
         # ServiceApp löst HLS-Varianten und Audio-Groups selbst korrekt auf;
         # _resolve_hls_best_variant() würde bei CMAF-Streams die Audio-Group-
@@ -907,31 +921,41 @@ def _build_ref(url, title, player, user_agent,
     # Hintergrundthread aufgerufen haben.
     url_str = url.decode("utf-8", "replace") if isinstance(url, bytes) else url
     if user_agent:
-        sep = "&" if "|" in url_str else "|"
+        sep = "&" if ("#" in url_str or "|" in url_str) else "#"
         url_str = url_str + sep + "User-Agent=" + user_agent
     url_bytes   = url_str.encode("utf-8") if not isinstance(url_str, bytes) else url_str
     title_bytes = title.encode("utf-8")   if not isinstance(title, bytes)   else title
-    if player == "exteplayer3":
-        if autoconfigure_serviceapp and _has_serviceapp():
+    url_str_s   = url_str.decode("utf-8", "replace") if isinstance(url_str, bytes) else url_str
+    title_str_s = title.decode("utf-8", "replace")   if isinstance(title, bytes)   else title
+    if not _has_serviceapp():
+        player_id = 4097
+    elif player == "exteplayer3":
+        if autoconfigure_serviceapp:
             _configure_serviceapp_for_live()
         player_id = 5002
     elif player == "gstplayer":
         player_id = 5001
     elif player == "default":
-        if "|" in url_str and _has_serviceapp():
-            player_id = 5002
-        else:
-            player_id = 4097
-    else:
-        if is_live and _has_serviceapp():
+        if ("#" in url_str or "|" in url_str) and not _PY3:
             if autoconfigure_serviceapp:
                 _configure_serviceapp_for_live()
             player_id = 5002
         else:
             player_id = 4097
-    _dbg("_build_ref player_id=%d url=%s" % (player_id, url_str))
-    ref = eServiceReference(player_id, 0, url_bytes)
-    ref.setName(title_bytes)
+    else:
+        if is_live:
+            if autoconfigure_serviceapp:
+                _configure_serviceapp_for_live()
+            player_id = 5002
+        else:
+            player_id = 4097
+    _dbg("_build_ref player_id=%d url=%s" % (player_id, url_str_s))
+    if _PY3:
+        ref = eServiceReference(player_id, 0, url_str_s)
+        ref.setName(title_str_s)
+    else:
+        ref = eServiceReference(player_id, 0, url_bytes)
+        ref.setName(title_bytes)
     return ref
 
 
@@ -967,7 +991,8 @@ def _make_recording_filepath(title, save_dir):
     if isinstance(save_dir, bytes):
         save_dir = save_dir.decode("utf-8", "replace")
     filename = u"%s_%s.ts" % (safe_title[:80], _time.strftime("%Y%m%d_%H%M%S"))
-    return os.path.join(save_dir, filename).encode("utf-8")
+    path = os.path.join(save_dir, filename)
+    return path if _PY3 else path.encode("utf-8")
 
 
 def format_size(size_bytes):
@@ -1154,9 +1179,9 @@ class HLSRecorder(object):
             video_path = self.filepath
             audio_path = None
             if audio_url:
-                base = self.filepath[:-3] if self.filepath.endswith(b".ts") else self.filepath
-                video_path = base + b".video.ts"
-                audio_path = base + b".audio.ts"
+                base = self.filepath[:-3] if self.filepath.endswith(".ts") else self.filepath
+                video_path = base + ".video.ts"
+                audio_path = base + ".audio.ts"
 
             f_video = open(video_path, "wb")
             f_audio = open(audio_path, "wb") if audio_path else None

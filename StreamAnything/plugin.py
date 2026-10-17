@@ -2,7 +2,7 @@
 
 import os
 import threading
-from sa_locale import _
+from .sa_locale import _
 
 from Plugins.Plugin import PluginDescriptor
 from Screens.Screen import Screen
@@ -38,16 +38,16 @@ def _cached_pixmap(path):
             _pixmap_cache[path] = None
     return _pixmap_cache[path]
 
-import streams as _streams
-import webif   as _webif
-import bouquet as _bouquet
-import youtube as _youtube
-import feratel as _feratel
-import skylinewebcams as _skyline
-import earthtv as _earthtv
-import earthcam as _earthcam
-import magentamusik as _magentamusik
-from player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
+from . import streams as _streams
+from . import webif   as _webif
+from . import bouquet as _bouquet
+from . import youtube as _youtube
+from . import feratel as _feratel
+from . import skylinewebcams as _skyline
+from . import earthtv as _earthtv
+from . import earthcam as _earthcam
+from . import magentamusik as _magentamusik
+from .player import play_resolved_stream, resolve_stream_url, HLSRecorder, format_size, format_duration, _self_heal_all_serviceapp_backups
 
 PLUGIN_DIR = os.path.dirname(__file__)
 
@@ -73,19 +73,29 @@ except Exception:
     IS_FHD = True
 
 
-def _b(val):
-    if isinstance(val, bytes):
-        return val
-    try:
-        return val.encode("utf-8")
-    except Exception:
-        return str(val)
+import sys as _sys
+_PY3 = _sys.version_info[0] >= 3
 
+if _PY3:
+    def _b(val):
+        if isinstance(val, bytes):
+            return val.decode("utf-8", "replace")
+        return str(val) if val is not None else ""
 
-def _u(val):
-    if isinstance(val, bytes):
-        return val.decode("utf-8", "replace")
-    return val
+    def _u(val):
+        if isinstance(val, bytes):
+            return val.decode("utf-8", "replace")
+        return str(val) if val is not None else ""
+else:
+    def _b(val):
+        if isinstance(val, unicode):
+            return val.encode("utf-8")
+        return str(val) if val is not None else ""
+
+    def _u(val):
+        if isinstance(val, str):
+            return val.decode("utf-8", "replace")
+        return unicode(val) if val is not None else u""
 
 
 _SA_DEBUG_FLAG = "/tmp/sa_debug"
@@ -238,11 +248,19 @@ def _play_item_bg(session, item, idx, items, url):
         def _apply():
             global _active_play_thread_running
             _active_play_thread_running = False
-            play_resolved_stream(session, url_str, title=name, is_live=True,
-                                 player=player, user_agent=user_agent,
-                                 autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
-                                 prefer_best_quality=prefer_bq,
-                                 streams=items, stream_index=idx)
+            try:
+                play_resolved_stream(session, url_str, title=name, is_live=True,
+                                     player=player, user_agent=user_agent,
+                                     autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
+                                     prefer_best_quality=prefer_bq,
+                                     streams=items, stream_index=idx)
+            except Exception as e:
+                _dbg("[StreamAnything] play_resolved_stream failed: %s" % e)
+                try:
+                    import traceback
+                    _dbg(traceback.format_exc())
+                except Exception:
+                    pass
 
         try:
             from twisted.internet import reactor
@@ -382,6 +400,19 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
         _start_native_recording(url, name, user_agent, duration_seconds, timer_id)
         return
 
+    url_check = url.decode("utf-8", "replace") if isinstance(url, bytes) else url
+    if not url_check.lower().split("?")[0].endswith(".m3u8"):
+        def _show_unsupported():
+            if _session:
+                from Screens.MessageBox import MessageBox as _MB
+                _session.open(_MB, _b(_("Aufnahme wird aktuell nur für HLS (.m3u8) Streams unterstützt.")), _MB.TYPE_ERROR, timeout=5)
+        try:
+            from twisted.internet import reactor
+            reactor.callFromThread(_show_unsupported)
+        except Exception:
+            _show_unsupported()
+        return
+
     if not os.path.isdir(RECORDING_DIR):
         try:
             os.makedirs(RECORDING_DIR)
@@ -404,6 +435,17 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
         _active_recordings.append(rec)
     rec.start()
 
+    def _show_started():
+        if _session:
+            from Screens.MessageBox import MessageBox as _MB
+            dur_str = format_duration(duration_seconds) if duration_seconds else _("unbegrenzt")
+            _session.open(_MB, _b(_("Aufnahme gestartet:\n%s (%s)") % (_u(name), dur_str)), _MB.TYPE_INFO, timeout=4)
+    try:
+        from twisted.internet import reactor
+        reactor.callFromThread(_show_started)
+    except Exception:
+        _show_started()
+
 
 def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
     import time as _time
@@ -424,8 +466,14 @@ def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
             from enigma import eServiceReference
             from RecordTimer import RecordTimerEntry
             from ServiceReference import ServiceReference
-            ref = eServiceReference(5002, 0, url_bytes)
-            ref.setName(name_bytes)
+            if _PY3:
+                ref_url  = url_str if isinstance(url_str, str) else url_str.decode("utf-8", "replace")
+                ref_name = name if isinstance(name, str) else name.decode("utf-8", "replace")
+            else:
+                ref_url  = url_bytes
+                ref_name = name_bytes
+            ref = eServiceReference(5002, 0, ref_url)
+            ref.setName(ref_name)
             entry = RecordTimerEntry(ServiceReference(ref), begin, end, timer_name_bytes, _b(""), None)
             NavigationInstance.instance.RecordTimer.record(entry)
             _dbg("Native Aufnahme gestartet: %s" % _u(name))
@@ -474,6 +522,16 @@ def _on_recording_finished(rec, *args):
         except Exception:
             dur = 0
         _write_meta(rec.filepath, rec.title, dur)
+        try:
+            from twisted.internet import reactor
+            from Screens.MessageBox import MessageBox as _MB
+            msg = _b(_("Aufnahme beendet:\n%s") % _u(rec.title))
+            def _show():
+                if _session:
+                    _session.open(_MB, msg, _MB.TYPE_INFO, timeout=4)
+            reactor.callFromThread(_show)
+        except Exception:
+            pass
 
 
 def _cancel_recording(rec):
@@ -980,10 +1038,10 @@ def _build_skin():
             '<widget name="hint_yellow" position="586,{ly}"  size="150,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<widget name="hint_ok"     position="586,{ly}"  size="190,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<eLabel backgroundColor="#1A0066FF" position="788,{py}" size="{pw},{ph}" zPosition="2" transparent="0"/>'
-            '<widget name="hint_blue"   position="806,{ly}"  size="160,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_menu"   position="1036,{ly}" size="280,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_info"   position="1338,{ly}" size="300,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
-            '<widget name="page_label"  position="1648,{ly}" size="242,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;28" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
+            '<widget name="hint_blue"   position="806,{ly}"  size="175,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_menu"   position="1000,{ly}" size="300,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_info"   position="1320,{ly}" size="370,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="page_label"  position="1710,{ly}" size="180,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;28" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
         ).format(ly=ly, lh=lh, py=pip_y, ph=pip_h, pw=pip_w, fs=fs)
     else:
         ly, lh = _LEGEND_Y, _LEGEND_H
@@ -1001,10 +1059,10 @@ def _build_skin():
             '<widget name="hint_yellow" position="362,{ly}"  size="100,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<widget name="hint_ok"     position="362,{ly}"  size="120,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
             '<eLabel backgroundColor="#1A0066FF" position="488,{py}" size="{pw},{ph}" zPosition="2" transparent="0"/>'
-            '<widget name="hint_blue"   position="498,{ly}"  size="90,{lh}"  zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_menu"   position="608,{ly}"  size="188,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC"/>'
-            '<widget name="hint_info"   position="811,{ly}"  size="195,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
-            '<widget name="page_label"  position="1016,{ly}" size="230,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
+            '<widget name="hint_blue"   position="498,{ly}"  size="85,{lh}"  zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_menu"   position="590,{ly}"  size="200,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="hint_info"   position="798,{ly}"  size="250,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="left"  valign="center" foregroundColor="#CCCCCC" noWrap="1"/>'
+            '<widget name="page_label"  position="1055,{ly}" size="191,{lh}" zPosition="4" transparent="1" backgroundColor="#1A000000" font="Regular;{fs}" halign="right" valign="center" foregroundColor="#AAAAAA" noWrap="1"/>'
         ).format(ly=ly, lh=lh, py=pip_y, ph=pip_h, pw=pip_w, fs=fs)
 
     tpad = 30 if IS_FHD else 20
@@ -1384,7 +1442,7 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
     ]
     if not _has_native_hls():
         choices.insert(2, (_b(_("Lok. Playlist Server: ") + (_("EIN") if cur_hls_fix else _("AUS"))), "hls_fix"))
-    if _has_native_hls() and not _needs_resolver(item.get("url", "")):
+    if not _needs_resolver(item.get("url", "")):
         choices.insert(-1, (_b(_("Als Bouquet exportieren")), "bouquet"))
 
     def on_ua(choice):
@@ -1454,7 +1512,7 @@ def _stream_context_menu(session, item, update_fn, refresh_cb, delete_fn=None, _
             session.openWithCallback(on_referer_choice, _SAChoiceScreen,
                                      title=_b(_("Als Quell-Website ausgeben")), list=rchoices)
         elif choice[1] == "record":
-            _open_record_duration_menu(session, item)
+            _open_record_duration_menu(session, item, on_started=refresh_cb)
         elif choice[1] == "bouquet":
             _do_export_bouquet(session, [item])
         elif choice[1] == "delete" and delete_fn:
@@ -1501,7 +1559,7 @@ def _do_export_bouquet(session, items):
         session.open(_MB, _b(err or _("Fehler beim Export.")), _MB.TYPE_ERROR, timeout=6)
 
 
-def _open_record_duration_menu(session, item):
+def _open_record_duration_menu(session, item, on_started=None):
     presets = [
         (_("30 Minuten"),    30 * 60),
         (_("1 Stunde"),      60 * 60),
@@ -1524,6 +1582,8 @@ def _open_record_duration_menu(session, item):
         if minutes <= 0:
             return
         _start_recording(item, minutes * 60)
+        if callable(on_started):
+            on_started()
 
     def on_duration(choice):
         if choice is None:
@@ -1535,6 +1595,8 @@ def _open_record_duration_menu(session, item):
             _open_native_timer_editor(session, item)
         else:
             _start_recording(item, choice[1])
+            if callable(on_started):
+                on_started()
 
     session.openWithCallback(on_duration, _SAChoiceScreen,
                              title=_b(_("Aufnahmedauer wählen")), list=choices)
@@ -1684,7 +1746,7 @@ class StreamAnywhereSettingsScreen(Screen):
             cur = self._pending.get(key, "auto")
             nxt = _LANG_CYCLE[(_LANG_CYCLE.index(cur) + 1) % len(_LANG_CYCLE)] if cur in _LANG_CYCLE else "auto"
             self._pending[key] = nxt
-            import sa_locale as _sa_locale
+            from . import sa_locale as _sa_locale
             _sa_locale.reinit(nxt)
             self._refresh()
         elif kind == "port":
@@ -1813,8 +1875,8 @@ class StreamAnywhereScreen(Screen):
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
-             "ChannelSelectBaseActions", "MenuActions", "InfobarSeekActions",
-             "EPGSelectActions"],
+             "ChannelSelectBaseActions", "MenuActions", "InfoActions",
+             "ChannelSelectEPGActions", "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
@@ -1833,6 +1895,8 @@ class StreamAnywhereScreen(Screen):
                 "blue":              self._key_blue,
                 "menu":              self._key_menu,
                 "info":              self._key_info,
+                "epg":               self._key_info,
+                "showEPGList":       self._key_info,
             },
             -1,
         )
@@ -2161,7 +2225,7 @@ class StreamAnywhereScreen(Screen):
         item = self._items[idx]
         if item.get("type") == "folder":
             return
-        _open_record_duration_menu(self.session, item)
+        _open_record_duration_menu(self.session, item, on_started=self._update_info_hint)
 
     def _key_info(self):
         self.session.open(StreamAnywhereRecordingsScreen)
@@ -2213,8 +2277,6 @@ class StreamAnywhereScreen(Screen):
                 self._render()
 
             folder_choices = [(_b(_("Als Bouquet exportieren")), "bouquet")]
-            if not _bouquet._has_native():
-                folder_choices = []
             folder_choices.append((_b(_("Löschen")), "delete"))
 
             def on_folder_menu(choice, item=item):
@@ -2608,8 +2670,8 @@ class StreamAnywhereGroupScreen(Screen):
 
         self["actions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions",
-             "ChannelSelectBaseActions", "MenuActions", "InfobarSeekActions",
-             "EPGSelectActions"],
+             "ChannelSelectBaseActions", "MenuActions", "InfoActions",
+             "ChannelSelectEPGActions", "MovielistSeekActions"],
             {
                 "ok":                self._ok,
                 "playpauseService":  self._ok,
@@ -2628,6 +2690,8 @@ class StreamAnywhereGroupScreen(Screen):
                 "blue":              self._key_blue,
                 "menu":              self._key_menu,
                 "info":              self._key_info,
+                "epg":               self._key_info,
+                "showEPGList":       self._key_info,
             },
             -1,
         )
@@ -2953,7 +3017,7 @@ class StreamAnywhereGroupScreen(Screen):
         item = self._items[idx]
         if item.get("type") == "folder":
             return
-        _open_record_duration_menu(self.session, item)
+        _open_record_duration_menu(self.session, item, on_started=self._update_info_hint)
 
     def _key_info(self):
         self.session.open(StreamAnywhereRecordingsScreen)
@@ -3348,14 +3412,14 @@ def autostart(reason, **kwargs):
 def Plugins(**kwargs):
     return [
         PluginDescriptor(
-            name        = b"StreamAnything",
+            name        = "StreamAnything",
             description = _b(_("Eigene Streams - konfigurierbar per WebIF")),
             where       = PluginDescriptor.WHERE_PLUGINMENU,
-            icon        = b"plugin.png",
+            icon        = "plugin.png",
             fnc         = main,
         ),
         PluginDescriptor(
-            name  = b"StreamAnything",
+            name  = "StreamAnything",
             where = PluginDescriptor.WHERE_AUTOSTART,
             fnc   = autostart,
         ),

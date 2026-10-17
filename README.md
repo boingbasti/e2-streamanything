@@ -31,7 +31,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **Quell-Website** – optionaler Referer-Proxy pro Stream für HLS-Streams mit CDN-Hotlink-Schutz: leitet alle Anfragen über einen lokalen Proxy mit gesetztem Referer-Header weiter (Auto oder manuelle Angabe)
 - **Live-Aufnahme** – Streams im Hintergrund aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten. Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) werden alle Streamtypen als echter Enigma2-Timer aufgezeichnet; ohne diese serviceapp nur HLS-Streams (.m3u8)
 - **ServiceApp-Auto-Konfiguration** – optimale Einstellungen für Live-Streams werden automatisch gesetzt
-- **Bouquet-Export** – Streams und Ordner direkt als Enigma2-Bouquet in die Senderliste exportieren; Logos werden automatisch als Picons übernommen (erfordert [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti))
+- **Bouquet-Export** – Streams und Ordner direkt als Enigma2-Bouquet in die Senderliste exportieren; Logos werden automatisch als Picons übernommen
 - **M3U-Export** – einzelne Ordner als M3U-Playlist exportieren (Button im WebIF am Ordner)
 - **Backup/Restore** – Stream-Konfiguration exportieren und importieren:
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
@@ -42,7 +42,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 
 ## Voraussetzungen
 
-- Enigma2 / VTI (getestet auf VU+ Uno 4K SE mit VTi 15.0.04 und Python 2.7)
+- Enigma2 / VTi oder openATV (getestet auf VTi 15/16 mit Python 2.7 und openATV 7.6/8.0 mit Python 3.12/3.14)
 - **ServiceApp** (optional) – wird für exteplayer3 und GStreamer benötigt. Im Player-Modus "Auto" wird exteplayer3 verwendet, wenn ServiceApp installiert ist; andernfalls fällt der Player automatisch auf den Enigma2-Standard-Player zurück und der Stream startet trotzdem. Bei explizit erzwungenem "exteplayer3" oder "GStreamer" gibt es keinen Fallback – ohne ServiceApp startet kein Stream. Die Einstellung "ServiceApp auto-konfigurieren" hat nur Wirkung, wenn ServiceApp installiert ist.
 - **Aktuelle CA-Zertifikate** (empfohlen) – VTI-Installationen haben oft veraltete CA-Zertifikate, was HTTPS-Verbindungen für YouTube-Auflösung, Logo-Download und HLS-Manifest-Abruf scheitern lassen kann. Das aktuelle Paket ist im Release enthalten und kann bei Bedarf installiert werden – oder direkt über FeedPlus als Update bezogen werden:
 
@@ -57,7 +57,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_1.8.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_2.0.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -110,14 +110,14 @@ Die **Menü-Taste** öffnet bei einem markierten Stream einen eigenen Optionen-S
 | User-Agent | Untermenü: (keiner), Android/Chrome, Windows/Chrome, iPhone/Safari, VLC |
 | Lokaler Playlist Server | Direkter Toggle EIN/AUS |
 | Quell-Website | Untermenü: AUS, Auto (generischer Referer) oder Website manuell angeben |
-| Als Bouquet exportieren | Stream direkt als Enigma2-Bouquet exportieren (nur sichtbar wenn [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) installiert ist und der Stream keine dynamische URL-Auflösung benötigt) |
+| Als Bouquet exportieren | Stream direkt als Enigma2-Bouquet exportieren (nicht verfügbar für Streams mit dynamischer URL-Auflösung wie YouTube, EarthCam usw.) |
 | Löschen | Stream löschen (mit Bestätigungsabfrage) |
 
 Änderungen an Player, User-Agent und HLS-Fix bleiben zunächst ausstehend. **Grüne Taste** speichert, **Rote Taste** oder **EXIT** bricht ab – bei ungespeicherten Änderungen erscheint eine Bestätigungsabfrage.
 
 #### Ordner-Optionen (Menü-Taste auf einem Ordner)
 
-Die **Menü-Taste** auf einem Ordner bietet die Option, den Ordner als Enigma2-Bouquet zu exportieren (erfordert [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti)) oder den Ordner samt aller enthaltenen Streams zu löschen.
+Die **Menü-Taste** auf einem Ordner bietet die Option, den Ordner als Enigma2-Bouquet zu exportieren oder den Ordner samt aller enthaltenen Streams zu löschen.
 
 #### Einstellungen (globale Plugin-Einstellungen)
 
@@ -155,7 +155,7 @@ Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
 
 Über den Button **Auswählen** (oben rechts) lässt sich ein Mehrfachauswahl-Modus aktivieren. Markierte Streams können damit in einen anderen Ordner verschoben werden. Drag & Drop bleibt im normalen Modus weiterhin verfügbar.
 
-Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) erscheinen an Ordnern und einzelnen Streams zusätzliche Buttons zum Bouquet-Export. Im unteren Bereich des WebIF lassen sich der Standard-Bouquet-Name und das Benennungsschema für Ordner-Bouquets einstellen.
+An Ordnern und einzelnen Streams stehen Buttons zum Bouquet-Export zur Verfügung. Im unteren Bereich des WebIF lassen sich der Standard-Bouquet-Name und das Benennungsschema für Ordner-Bouquets einstellen.
 
 ## YouTube-Livestreams
 
