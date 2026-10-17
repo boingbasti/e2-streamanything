@@ -200,12 +200,15 @@ class SAStreamPlayer(MoviePlayer):
 
 
 def _has_serviceapp():
-    return os.path.exists("/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+    return (
+        os.path.exists("/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+        or os.path.exists("/usr/lib64/enigma2/python/Plugins/SystemPlugins/ServiceApp")
+    )
 
 
 def _has_new_exteplayer3():
-    # exteplayer3 >= v181 (feedplus/manuell) bringt eigene Libs in /usr/lib/exteplayer3_deps/
-    return os.path.isdir("/usr/lib/exteplayer3_deps")
+    # VTi-Paket legt /usr/lib/exteplayer3_deps an; openATV/Py3 linkt direkt gegen System-Libs
+    return os.path.isdir("/usr/lib/exteplayer3_deps") or _PY3
 
 
 def _resolve_hls_best_variant(url, user_agent=""):
@@ -227,6 +230,12 @@ def _resolve_hls_best_variant(url, user_agent=""):
         _dbg("m3u8 fetched effective_url=%s len=%d has_stream_inf=%s" % (
             effective_url, len(content), "#EXT-X-STREAM-INF" in content))
         if "#EXT-X-STREAM-INF" not in content:
+            return url
+        if "#EXT-X-MEDIA" in content and "TYPE=AUDIO" in content:
+            _dbg("m3u8 has separate #EXT-X-MEDIA audio tracks, using _build_local_playlist")
+            local_url = _build_local_playlist(url, user_agent)
+            if local_url:
+                return local_url
             return url
         best_bw, best_url = -1, None
         lines = content.splitlines()
@@ -918,19 +927,23 @@ def _build_ref(url, title, player, user_agent,
     title_bytes = title.encode("utf-8")   if not isinstance(title, bytes)   else title
     url_str_s   = url_str.decode("utf-8", "replace") if isinstance(url_str, bytes) else url_str
     title_str_s = title.decode("utf-8", "replace")   if isinstance(title, bytes)   else title
-    if player == "exteplayer3":
-        if autoconfigure_serviceapp and _has_serviceapp():
+    if not _has_serviceapp():
+        player_id = 4097
+    elif player == "exteplayer3":
+        if autoconfigure_serviceapp:
             _configure_serviceapp_for_live()
         player_id = 5002
     elif player == "gstplayer":
         player_id = 5001
     elif player == "default":
-        if ("#" in url_str or "|" in url_str) and _has_serviceapp():
+        if ("#" in url_str or "|" in url_str) and not _PY3:
+            if autoconfigure_serviceapp:
+                _configure_serviceapp_for_live()
             player_id = 5002
         else:
             player_id = 4097
     else:
-        if is_live and _has_serviceapp():
+        if is_live:
             if autoconfigure_serviceapp:
                 _configure_serviceapp_for_live()
             player_id = 5002
