@@ -44,6 +44,7 @@ class SAStreamPlayer(MoviePlayer):
     def __init__(self, session, service, streams=None, stream_index=0,
                  autoconfigure_serviceapp=True, prefer_best_quality=True):
         MoviePlayer.__init__(self, session, service)
+        self.skinName = ["MoviePlayer", "InfoBar"]
         self._streams             = streams or []
         self._stream_index        = stream_index
         self._autoconfigure       = autoconfigure_serviceapp
@@ -178,7 +179,7 @@ class SAStreamPlayer(MoviePlayer):
             _apply()
 
     def leavePlayer(self):
-        self.close()
+        self.close(self._stream_index)
 
     def doEofInternal(self, playing):
         _dbg("doEofInternal called playing=%s streams=%d showing_offline=%s" % (
@@ -196,7 +197,7 @@ class SAStreamPlayer(MoviePlayer):
             except Exception:
                 self.session.nav.playService(_offline_ref(stream_name))
             return
-        self.close()
+        self.close(self._stream_index)
 
 
 def _has_serviceapp():
@@ -961,17 +962,20 @@ def _build_ref(url, title, player, user_agent,
 
 def play_resolved_stream(session, stream_url, title="Stream", is_live=False, player="", user_agent="",
                          autoconfigure_serviceapp=True, prefer_best_quality=True,
-                         streams=None, stream_index=0):
+                         streams=None, stream_index=0, on_close=None):
     # GUI-Thread-sicher: erwartet, dass resolve_stream_url() (Netzwerkzugriff
     # fuer HLS-Audio-Fix/Best-Quality) bereits vorher im Hintergrundthread
     # gelaufen ist.
     ref = _build_ref(stream_url, title, player, user_agent,
                      autoconfigure_serviceapp, is_live)
-    session.open(SAStreamPlayer, ref,
-                 streams=streams or [],
-                 stream_index=stream_index,
-                 autoconfigure_serviceapp=autoconfigure_serviceapp,
-                 prefer_best_quality=prefer_best_quality)
+    kw = dict(streams=streams or [],
+              stream_index=stream_index,
+              autoconfigure_serviceapp=autoconfigure_serviceapp,
+              prefer_best_quality=prefer_best_quality)
+    if callable(on_close):
+        session.openWithCallback(on_close, SAStreamPlayer, ref, **kw)
+    else:
+        session.open(SAStreamPlayer, ref, **kw)
 
 
 # ------------------------------------------------------------------

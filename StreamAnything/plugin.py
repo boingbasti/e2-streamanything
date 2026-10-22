@@ -210,7 +210,7 @@ def _needs_resolver(url):
 _active_play_thread_running = False
 
 
-def _play_item(session, item, idx, items):
+def _play_item(session, item, idx, items, on_close=None):
     # Startet das Abspielen eines Streams im Hintergrundthread. Sowohl die
     # standortspezifischen Resolver als auch resolve_stream_url() (HLS-
     # Audio-Fix/Best-Quality) machen blockierende HTTP-Anfragen, deren DNS-
@@ -227,12 +227,12 @@ def _play_item(session, item, idx, items):
         return
     _active_play_thread_running = True
     import threading
-    t = threading.Thread(target=_play_item_bg, args=(session, item, idx, items, url))
+    t = threading.Thread(target=_play_item_bg, args=(session, item, idx, items, url, on_close))
     t.daemon = True
     t.start()
 
 
-def _play_item_bg(session, item, idx, items, url):
+def _play_item_bg(session, item, idx, items, url, on_close=None):
     global _active_play_thread_running
     name       = item.get("name", "Stream")
     player     = item.get("player", "")
@@ -253,7 +253,8 @@ def _play_item_bg(session, item, idx, items, url):
                                      player=player, user_agent=user_agent,
                                      autoconfigure_serviceapp=_get_setting("serviceapp_autoconfigure", True),
                                      prefer_best_quality=prefer_bq,
-                                     streams=items, stream_index=idx)
+                                     streams=items, stream_index=idx,
+                                     on_close=on_close)
             except Exception as e:
                 _dbg("[StreamAnything] play_resolved_stream failed: %s" % e)
                 try:
@@ -2582,7 +2583,8 @@ class StreamAnywhereScreen(Screen):
             if item.get("type") == "folder":
                 self.session.open(StreamAnywhereGroupScreen, item)
                 return
-            _play_item(self.session, item, self._list_sel, self._items)
+            _play_item(self.session, item, self._list_sel, self._items,
+                       on_close=self._on_player_close)
             return
 
         offset = self._page * TILES_PER_PAGE
@@ -2604,7 +2606,15 @@ class StreamAnywhereScreen(Screen):
             self.session.open(StreamAnywhereGroupScreen, item)
             return
         else:
-            _play_item(self.session, item, idx, self._items)
+            _play_item(self.session, item, idx, self._items,
+                       on_close=self._on_player_close)
+
+    def _on_player_close(self, end_idx):
+        if end_idx is not None and 0 <= end_idx < len(self._items):
+            self._list_sel = end_idx
+            self._page     = end_idx // TILES_PER_PAGE
+            self._sel      = end_idx % TILES_PER_PAGE
+            self._render()
 
 
 # ------------------------------------------------------------------
@@ -3346,7 +3356,8 @@ class StreamAnywhereGroupScreen(Screen):
                 self._render_list()
                 return
             item = self._items[self._list_sel]
-            _play_item(self.session, item, self._list_sel, self._items)
+            _play_item(self.session, item, self._list_sel, self._items,
+                       on_close=self._on_player_close)
             return
 
         offset = self._page * TILES_PER_PAGE
@@ -3364,7 +3375,15 @@ class StreamAnywhereGroupScreen(Screen):
             return
 
         item = self._items[idx]
-        _play_item(self.session, item, idx, self._items)
+        _play_item(self.session, item, idx, self._items,
+                   on_close=self._on_player_close)
+
+    def _on_player_close(self, end_idx):
+        if end_idx is not None and 0 <= end_idx < len(self._items):
+            self._list_sel = end_idx
+            self._page     = end_idx // TILES_PER_PAGE
+            self._sel      = end_idx % TILES_PER_PAGE
+            self._render()
 
 
 # ------------------------------------------------------------------
