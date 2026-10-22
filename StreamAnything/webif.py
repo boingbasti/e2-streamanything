@@ -638,6 +638,36 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "moved": moved})
             return
 
+        if path == "/api/streams/bulk_bouquet":
+            try:
+                from . import bouquet as _bouquet
+                from . import plugin  as _plugin
+                data       = self._parse_json_body()
+                stream_ids = set(item.get("id", "") for item in data.get("stream_ids", []))
+                cfg        = _streams.get_config()
+                selected   = []
+                for it in cfg.get("items", []):
+                    if it.get("type") == "folder":
+                        for s in it.get("streams", []):
+                            if s.get("id") in stream_ids:
+                                selected.append(s)
+                    elif it.get("id") in stream_ids:
+                        selected.append(it)
+                exportable = [s for s in selected if not _plugin._needs_resolver(s.get("url", ""))]
+                skipped    = len(selected) - len(exportable)
+                if not exportable:
+                    self._send_json({"ok": False, "error": _("Keine exportierbaren Streams ausgewählt"), "skipped": skipped})
+                    return
+                default_name = _plugin._get_setting(
+                    "bouquet_default_name",
+                    _plugin._SETTINGS_DEFAULTS["bouquet_default_name"],
+                )
+                ok, err = _bouquet.export_bouquet_items(exportable, default_name)
+                self._send_json({"ok": ok, "error": err or "", "skipped": skipped})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
         # ---- Groups: Gruppe hinzufügen ----
         if path == "/api/groups":
             data     = self._parse_json_body()
@@ -1350,6 +1380,23 @@ function bulkMove(){
   });
 }
 
+function bulkBouquet(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  if(!items.length) return;
+  xhr('POST','/api/streams/bulk_bouquet',{stream_ids:items},function(r){
+    _selMode=false; _sel={};
+    load();
+    if(r&&r.ok){
+      var msg = 'Bouquet exportiert.';
+      if(r.skipped) msg += ' '+r.skipped+' '+(r.skipped===1?'Stream':'Streams')+' übersprungen.';
+      showToast(msg);
+    } else {
+      showToast((r&&r.error)||'Fehler beim Export.');
+    }
+  });
+}
+
 function renderItemList(){
   var h = '<style>'
     +'.sel-active{background:rgba(52,152,219,.18)!important;box-shadow:inset 3px 0 0 #3498db}'
@@ -1387,6 +1434,7 @@ function renderItemList(){
       h += '<span style="color:var(--text2,#aaa)">&#8594; Verschieben nach:</span>';
       h += '<select id="_sel_target" style="padding:4px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)">'+opts+'</select>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkMove()">Verschieben</button>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkBouquet()">&#9654;&#9654; Als Bouquet</button>';
       h += '<button class="btn btn-sm" style="background:#555;margin-left:auto" onclick="exitSelMode()">&#10005; Abbrechen</button>';
     }
     h += '</div>';
