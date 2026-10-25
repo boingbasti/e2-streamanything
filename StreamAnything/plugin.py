@@ -1140,7 +1140,6 @@ def _build_skin():
 def _build_settings_skin():
     n = len(_get_settings())
     if IS_FHD:
-        sx, sy          = 510, 200
         sw              = 900
         tf, rf          = 36, 26
         row_h           = 70
@@ -1156,8 +1155,9 @@ def _build_settings_skin():
         ok_x,  ok_w     = 20,  260
         gp_x, g_x, g_w  = 300, 316, 248
         rp_x, r_x, r_w  = 586, 602, 248
+        sx              = (1920 - sw) // 2
+        sy              = max(20, (1080 - sh) // 2)
     else:
-        sx, sy          = 340, 133
         sw              = 600
         tf, rf          = 24, 18
         row_h           = 47
@@ -1173,6 +1173,8 @@ def _build_settings_skin():
         ok_x,  ok_w     = 15,  170
         gp_x, g_x, g_w  = 200, 213, 164
         rp_x, r_x, r_w  = 393, 406, 164
+        sx              = (1280 - sw) // 2
+        sy              = max(10, (720 - sh) // 2)
 
     rows_xml = ""
     for i in range(n):
