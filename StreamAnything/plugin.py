@@ -1963,7 +1963,7 @@ class StreamAnythingDirBrowser(_SADirBrowserMixin, Screen):
             self._fill(parent)
         elif full == self._cur:
             self._result = self._cur
-            self.close()
+            self.close(self._result)
         else:
             self._fill(full)
 
@@ -1992,7 +1992,7 @@ class StreamAnythingDirBrowser(_SADirBrowserMixin, Screen):
 
     def _on_cancel(self):
         self._result = None
-        self.close()
+        self.close(None)
 
     def doClose(self):
         try:
