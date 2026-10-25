@@ -390,6 +390,9 @@ class _Handler(BaseHTTPRequestHandler):
                     "bouquet_by_folder":    _plugin._get_setting(
                         "bouquet_by_folder",
                         _plugin._SETTINGS_DEFAULTS["bouquet_by_folder"]),
+                    "recording_dir":        _plugin._get_setting(
+                        "recording_dir",
+                        _plugin._SETTINGS_DEFAULTS["recording_dir"]),
                 })
             except Exception:
                 cfg = _streams.get_config()
@@ -473,6 +476,10 @@ class _Handler(BaseHTTPRequestHandler):
                     _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
                 if "bouquet_by_folder" in data:
                     _plugin._set_setting("bouquet_by_folder", bool(data["bouquet_by_folder"]))
+                if "recording_dir" in data:
+                    new_dir = (data.get("recording_dir") or "").strip()
+                    if new_dir:
+                        _plugin._set_setting("recording_dir", new_dir)
             except Exception:
                 pass
             self._send_json({"ok": True})
@@ -1283,17 +1290,23 @@ function renderSettingsSection(){
   h += '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
   h += '<input type="checkbox" id="cfg_by_folder"'+(state.config.bouquet_by_folder?' checked':'')+' style="width:16px;height:16px">';
   h += 'Bouquets nach Ordnern benennen</label></div>';
-  h += '<div><button class="btn btn-primary btn-sm" onclick="saveBouquetSettings()">Speichern</button></div>';
+  h += '<div class="form-row"><label style="white-space:nowrap;align-self:center;min-width:160px">Aufnahme-Ordner</label>';
+  h += '<input id="cfg_recording_dir" value="'+esc(state.config.recording_dir||'/media/hdd/movie/StreamAnything')+'" placeholder="/media/hdd/movie/StreamAnything" style="flex:1"></div>';
+  h += '<div><button class="btn btn-primary btn-sm" onclick="saveSettings()">Speichern</button></div>';
   h += '</div></div>';
   return h;
 }
 
-function saveBouquetSettings(){
+function saveSettings(){
   var name = (document.getElementById('cfg_bouquet_name').value||'').trim() || 'StreamAnything';
   var byFolder = !!document.getElementById('cfg_by_folder').checked;
+  var recDir = (document.getElementById('cfg_recording_dir').value||'').trim();
   state.config.bouquet_default_name = name;
   state.config.bouquet_by_folder    = byFolder;
-  xhr('POST','/api/config',{bouquet_default_name: name, bouquet_by_folder: byFolder},function(r){
+  if(recDir) state.config.recording_dir = recDir;
+  var payload = {bouquet_default_name: name, bouquet_by_folder: byFolder};
+  if(recDir) payload.recording_dir = recDir;
+  xhr('POST','/api/config',payload,function(r){
     if(r&&r.ok) showToast('Einstellungen gespeichert.');
     else alert('Fehler beim Speichern.');
   });

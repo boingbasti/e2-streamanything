@@ -98,6 +98,16 @@ else:
         return unicode(val) if val is not None else u""
 
 
+def _fs_path(p):
+    """Liefert den Pfad im nativen Dateisystem-Typ: Py3=str, Py2=UTF-8 bytes."""
+    if not p:
+        return ""
+    if _PY3:
+        return p.decode("utf-8", "replace") if isinstance(p, bytes) else str(p)
+    else:
+        return p.encode("utf-8") if isinstance(p, type(u"")) else str(p)
+
+
 _SA_DEBUG_FLAG = "/tmp/sa_debug"
 _SA_DEBUG_LOG  = "/tmp/streamanything.log"
 
@@ -138,6 +148,7 @@ def _get_settings():
         ("language",                 _("Sprache"),                         "lang"),
         ("bouquet_default_name",     _("Bouquet-Name"),                    "text"),
         ("bouquet_by_folder",        _("Bouquets nach Ordnern benennen"),  "toggle"),
+        ("recording_dir",            _("Aufnahme-Ordner"),                 "dir"),
     ]
 
 
@@ -153,6 +164,7 @@ _SETTINGS_DEFAULTS = {
     "language":                 "auto",
     "bouquet_default_name":     "StreamAnything",
     "bouquet_by_folder":        True,
+    "recording_dir":            "/media/hdd/movie/StreamAnything",
 }
 
 
@@ -280,6 +292,27 @@ def _play_item_bg(session, item, idx, items, url, on_close=None):
 # beliebig viele Aufnahmen gleichzeitig statt eine aktiv + Rest in Reihe)
 # ------------------------------------------------------------------
 RECORDING_DIR = "/media/hdd/movie/StreamAnything"
+
+
+def _get_recording_dir():
+    d = _get_setting("recording_dir", RECORDING_DIR)
+    if not d:
+        d = RECORDING_DIR
+    d_fs = _fs_path(d).rstrip("/\\")
+    try:
+        if not os.path.isdir(d_fs):
+            os.makedirs(d_fs)
+        return d_fs
+    except Exception:
+        pass
+    try:
+        fb = _fs_path(RECORDING_DIR)
+        if not os.path.isdir(fb):
+            os.makedirs(fb)
+        return fb
+    except Exception:
+        return _fs_path("/media/hdd/movie")
+
 
 _active_recordings = []
 _session = None
@@ -414,11 +447,7 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
             _show_unsupported()
         return
 
-    if not os.path.isdir(RECORDING_DIR):
-        try:
-            os.makedirs(RECORDING_DIR)
-        except Exception:
-            pass
+    rec_dir = _get_recording_dir()
 
     def _on_finished(rec, *args):
         _on_recording_finished(rec, *args)
@@ -429,7 +458,7 @@ def _start_recording_bg(url, name, user_agent, duration_seconds, timer_id):
                 pass
 
     rec = HLSRecorder(
-        url, name, RECORDING_DIR, user_agent=user_agent, duration=duration_seconds,
+        url, name, rec_dir, user_agent=user_agent, duration=duration_seconds,
         on_done=_on_finished, on_error=_on_finished,
     )
     with _recordings_lock:
@@ -476,7 +505,7 @@ def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
             ref = eServiceReference(5002, 0, ref_url)
             ref.setName(ref_name)
             entry = RecordTimerEntry(ServiceReference(ref), begin, end, timer_name_bytes, _b(""), None)
-            entry.dirname = RECORDING_DIR + "/"
+            entry.dirname = _get_recording_dir() + "/"
             NavigationInstance.instance.RecordTimer.record(entry)
             _dbg("Native Aufnahme gestartet: %s" % _u(name))
             if _session:
@@ -1117,7 +1146,7 @@ def _build_settings_skin():
         row_h           = 70
         row_y0          = 110
         sel_h           = 60
-        val_w           = 200
+        val_w           = 420
         leg_h           = 60
         sh              = 140 + n * row_h + 40 + leg_h
         leg_y           = sh - leg_h
@@ -1134,7 +1163,7 @@ def _build_settings_skin():
         row_h           = 47
         row_y0          = 73
         sel_h           = 40
-        val_w           = 133
+        val_w           = 280
         leg_h           = 40
         sh              = 93 + n * row_h + 27 + leg_h
         leg_y           = sh - leg_h
@@ -1650,6 +1679,325 @@ def _open_native_timer_editor(session, item):
 # ------------------------------------------------------------------
 # Settings-Screen
 # ------------------------------------------------------------------
+def _update_scrollbar_db(screen, sb_x, sb_y0, sb_rh, rows):
+    total = len(screen._list_items)
+    if total <= rows:
+        try:
+            screen["scrollbar_track"].hide()
+            screen["scrollbar_thumb"].hide()
+        except Exception:
+            pass
+        return
+    try:
+        screen["scrollbar_track"].show()
+        screen["scrollbar_thumb"].show()
+        track_w   = 6 if IS_FHD else 4
+        overhang  = 4 if IS_FHD else 2
+        thumb_w   = track_w + 2 * overhang
+        track_h   = rows * sb_rh
+        min_h     = 30 if IS_FHD else 20
+        thumb_h   = max(min_h, int(round(track_h * float(rows) / total)))
+        max_scroll = max(1, total - rows)
+        scroll_pos = max(0, min(screen._list_scroll, max_scroll))
+        thumb_y   = sb_y0 + int(round((track_h - thumb_h) * (float(scroll_pos) / max_scroll)))
+        screen["scrollbar_thumb"].instance.resize(eSize(thumb_w, thumb_h))
+        screen["scrollbar_thumb"].instance.move(ePoint(sb_x - overhang, thumb_y))
+    except Exception:
+        pass
+
+
+class _SADirBrowserMixin(object):
+
+    _CL_ROWS = 10
+
+    def _cl_init(self):
+        self._list_items  = []
+        self._list_sel    = 0
+        self._list_scroll = 0
+        for i in range(self._CL_ROWS):
+            self["list_sel_%d"   % i] = Label(_b(""))
+            self["list_label_%d" % i] = Label(_b(""))
+            self["list_sel_%d"   % i].hide()
+            self["list_label_%d" % i].hide()
+        self["scrollbar_track"] = Label(_b(""))
+        self["scrollbar_thumb"] = Label(_b(""))
+        self["scrollbar_track"].hide()
+        self["scrollbar_thumb"].hide()
+
+    def _set_list(self, items):
+        self._list_items  = list(items)
+        self._list_sel    = 0
+        self._list_scroll = 0
+        self._render_list()
+
+    def _get_list_index(self):
+        return self._list_sel if self._list_items else None
+
+    def _render_list(self):
+        rows  = self._CL_ROWS
+        total = len(self._list_items)
+        if total == 0:
+            self._list_sel = self._list_scroll = 0
+        else:
+            self._list_sel = max(0, min(self._list_sel, total - 1))
+            if self._list_sel < self._list_scroll:
+                self._list_scroll = self._list_sel
+            elif self._list_sel >= self._list_scroll + rows:
+                self._list_scroll = self._list_sel - rows + 1
+            self._list_scroll = max(0, self._list_scroll)
+        for i in range(rows):
+            abs_idx = self._list_scroll + i
+            if abs_idx < total:
+                item = self._list_items[abs_idx]
+                if isinstance(item, bytes):
+                    try:
+                        item = item.decode("utf-8", "replace")
+                    except Exception:
+                        item = str(item)
+                self["list_label_%d" % i].setText(_b(item))
+                self["list_label_%d" % i].show()
+                if abs_idx == self._list_sel:
+                    self["list_sel_%d" % i].show()
+                else:
+                    self["list_sel_%d" % i].hide()
+            else:
+                self["list_sel_%d"   % i].hide()
+                self["list_label_%d" % i].hide()
+        _update_scrollbar_db(
+            self,
+            getattr(self, "_sb_x", 0),
+            getattr(self, "_sb_y0", 0),
+            getattr(self, "_sb_rh", 40),
+            rows,
+        )
+
+    def _list_step(self, step):
+        total = len(self._list_items)
+        if total == 0:
+            return
+        rows       = self._CL_ROWS
+        old_sel    = self._list_sel
+        old_scroll = self._list_scroll
+        self._list_sel = (old_sel + step) % total
+        if self._list_sel < old_scroll or self._list_sel >= old_scroll + rows:
+            if step > 0:
+                self._list_scroll = self._list_sel
+            else:
+                self._list_scroll = self._list_sel - rows + 1
+        self._list_scroll = max(0, self._list_scroll)
+        if self._list_scroll != old_scroll:
+            self._render_list()
+        else:
+            old_row = old_sel - old_scroll
+            new_row = self._list_sel - self._list_scroll
+            if 0 <= old_row < rows:
+                self["list_sel_%d" % old_row].hide()
+            if 0 <= new_row < rows:
+                self["list_sel_%d" % new_row].show()
+
+    def _list_page(self, direction):
+        if not self._list_items:
+            return
+        rows = self._CL_ROWS
+        total = len(self._list_items)
+        cur_page = self._list_scroll // rows
+        if direction > 0:
+            next_scroll = (cur_page + 1) * rows
+            if next_scroll < total:
+                new_scroll = next_scroll
+                new_sel = new_scroll
+            else:
+                new_scroll = self._list_scroll
+                new_sel = total - 1
+        else:
+            if self._list_scroll > 0:
+                new_scroll = max(0, (cur_page - 1) * rows)
+                new_sel = new_scroll
+            else:
+                new_scroll = 0
+                new_sel = 0
+        self._list_sel = max(0, min(new_sel, total - 1))
+        self._list_scroll = new_scroll
+        self._render_list()
+
+
+_SA_DB_ROWS = 10
+
+
+class StreamAnythingDirBrowser(_SADirBrowserMixin, Screen):
+
+    _CL_ROWS = _SA_DB_ROWS
+
+    @staticmethod
+    def _make_skin():
+        rows = _SA_DB_ROWS
+        if IS_FHD:
+            lx, ly0, lw, rh, rf = 40, 150, 1320, 58, 34
+        else:
+            lx, ly0, lw, rh, rf = 27, 100, 880, 38, 22
+        list_xml = ""
+        for i in range(rows):
+            y = ly0 + i * rh
+            list_xml += (
+                '<widget name="list_sel_{i}" position="{x},{y}" size="{w},{rh}" '
+                'backgroundColor="#11962d20" zPosition="1" transparent="0"/>'
+                '<widget name="list_label_{i}" position="{lbx},{y}" size="{lbw},{rh}" '
+                'zPosition="2" font="Regular;{rf}" halign="left" valign="center" '
+                'foregroundColor="#CCCCCC" backgroundColor="#33000000" transparent="1" noWrap="1"/>'
+            ).format(i=i, x=lx, y=y, w=lw, lbx=lx + 12, lbw=lw - 12, rh=rh, rf=rf)
+        if IS_FHD:
+            sbx = lx + lw + 10
+            sbt = ly0
+            sbh = rows * rh
+            return (
+                '<screen name="StreamAnythingDirBrowser" position="260,140" size="1400,800" flags="wfNoBorder">'
+                '<eLabel position="0,0" size="1400,800" backgroundColor="#1A000000" zPosition="-6"/>'
+                '<eLabel backgroundColor="#cc3d2d" position="0,0" size="1400,4" zPosition="1" transparent="0"/>'
+                '<widget name="title_label" position="40,20" size="1320,60" font="Regular;38" halign="center" foregroundColor="#FFFFFF" transparent="1"/>'
+                '<widget name="path_label" position="40,90" size="1320,50" font="Regular;28" foregroundColor="#AAAAAA" transparent="1" noWrap="1"/>'
+                + list_xml +
+                '<widget name="scrollbar_track" position="{sbx},{sbt}" size="6,{sbh}" backgroundColor="#1AFFFFFF" zPosition="1"/>'
+                '<widget name="scrollbar_thumb" position="{sbx},{sbt}" size="6,58" backgroundColor="#11962d20" zPosition="2"/>'
+                '<widget name="hint_label" position="40,730" size="1320,50" font="Regular;28" halign="center" foregroundColor="#AAAAAA" transparent="1"/>'
+                '</screen>'
+            ).format(sbx=sbx, sbt=sbt, sbh=sbh)
+        else:
+            sbx = lx + lw + 7
+            sbt = ly0
+            sbh = rows * rh
+            return (
+                '<screen name="StreamAnythingDirBrowser" position="173,93" size="933,534" flags="wfNoBorder">'
+                '<eLabel position="0,0" size="933,534" backgroundColor="#1A000000" zPosition="-6"/>'
+                '<eLabel backgroundColor="#cc3d2d" position="0,0" size="933,4" zPosition="1" transparent="0"/>'
+                '<widget name="title_label" position="27,13" size="880,40" font="Regular;25" halign="center" foregroundColor="#FFFFFF" transparent="1"/>'
+                '<widget name="path_label" position="27,60" size="880,33" font="Regular;19" foregroundColor="#AAAAAA" transparent="1" noWrap="1"/>'
+                + list_xml +
+                '<widget name="scrollbar_track" position="{sbx},{sbt}" size="4,{sbh}" backgroundColor="#1AFFFFFF" zPosition="1"/>'
+                '<widget name="scrollbar_thumb" position="{sbx},{sbt}" size="4,38" backgroundColor="#11962d20" zPosition="2"/>'
+                '<widget name="hint_label" position="27,487" size="880,33" font="Regular;19" halign="center" foregroundColor="#AAAAAA" transparent="1"/>'
+                '</screen>'
+            ).format(sbx=sbx, sbt=sbt, sbh=sbh)
+
+    def __init__(self, session, start_dir=None):
+        self.skin = self._make_skin()
+        Screen.__init__(self, session)
+        if IS_FHD:
+            self._sb_x  = 1370
+            self._sb_y0 = 150
+            self._sb_rh = 58
+        else:
+            self._sb_x  = 914
+            self._sb_y0 = 100
+            self._sb_rh = 38
+        self._cl_init()
+        self._cur     = _fs_path(start_dir or "/")
+        self._result  = None
+
+        self["title_label"] = Label(_b(_("Ordner auswählen")))
+        self["path_label"]  = Label(_b(self._cur))
+        self["hint_label"]  = Label(_b(_("OK = Öffnen/Wählen  |  Gelb = Neuer Ordner  |  EXIT = Abbrechen")))
+
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "DirectionActions", "ColorActions", "ListboxActions"],
+            {
+                "ok":           self._on_ok,
+                "cancel":       self._on_cancel,
+                "yellow":       self._new_folder,
+                "up":           lambda: self._list_step(-1),
+                "down":         lambda: self._list_step(1),
+                "upRepeated":   lambda: self._list_step(-1),
+                "downRepeated": lambda: self._list_step(1),
+                "left":         lambda: self._list_page(-1),
+                "right":        lambda: self._list_page(1),
+                "pageUp":       lambda: self._list_page(-1),
+                "pageDown":     lambda: self._list_page(1),
+            },
+            -1,
+        )
+
+        self._fill(self._cur)
+
+    @staticmethod
+    def _normalize_path(path):
+        if not _PY3:
+            if isinstance(path, type(u"")):
+                return path.encode("utf-8")
+        return path
+
+    def _fill(self, path):
+        path = _fs_path(path)
+        self._cur = path
+        entries = []
+        if path not in ("/", _fs_path("/")):
+            entries.append((_("[ Übergeordneter Ordner ]"), None))
+        entries.append((_("»  Hier speichern"), path))
+        try:
+            names = sorted(os.listdir(path))
+            for name in names:
+                if isinstance(name, bytes):
+                    name_str = name.decode("utf-8", "replace")
+                    full = os.path.join(path, name)
+                else:
+                    name_str = name
+                    full = os.path.join(path, name)
+                if os.path.isdir(full):
+                    entries.append(("[" + name_str + "]", full))
+        except Exception as e:
+            _dbg("DirBrowser _fill: %s" % e)
+        self._entries = entries
+        self._set_list([e[0] for e in entries])
+        path_display = path if isinstance(path, type(u"")) else path.decode("utf-8", "replace") if isinstance(path, bytes) else str(path)
+        self["path_label"].setText(_b(path_display))
+
+    def _on_ok(self):
+        idx = self._get_list_index()
+        if idx is None or idx >= len(self._entries):
+            return
+        label, full = self._entries[idx]
+        if full is None:
+            cur = self._cur if isinstance(self._cur, type(u"")) else self._cur.decode("utf-8", "replace") if isinstance(self._cur, bytes) else str(self._cur)
+            parent = os.path.dirname(cur.rstrip("/")) or "/"
+            self._fill(parent)
+        elif full == self._cur:
+            self._result = self._cur
+            self.close()
+        else:
+            self._fill(full)
+
+    def _new_folder(self):
+        try:
+            self.session.openWithCallback(self._create_folder, VirtualKeyBoard,
+                                          title=_b(_("Neuer Ordnername:")),
+                                          text=_b(""))
+        except Exception as e:
+            _dbg("DirBrowser _new_folder: %s" % e)
+
+    def _create_folder(self, name):
+        if not name:
+            return
+        if isinstance(name, bytes):
+            name = name.decode("utf-8", "replace")
+        name = name.strip()
+        if not name:
+            return
+        try:
+            new_path = os.path.join(self._cur, _fs_path(name))
+            os.makedirs(new_path)
+            self._fill(self._cur)
+        except Exception as e:
+            _dbg("DirBrowser _create_folder: %s" % e)
+
+    def _on_cancel(self):
+        self._result = None
+        self.close()
+
+    def doClose(self):
+        try:
+            Screen.doClose(self)
+        except TypeError:
+            pass
+
+
 class StreamAnywhereSettingsScreen(Screen):
 
     skin = _build_settings_skin()
@@ -1693,6 +2041,8 @@ class StreamAnywhereSettingsScreen(Screen):
                 self._pending[key] = _get_setting(key, "auto")
             elif kind == "text":
                 self._pending[key] = _get_setting(key, _SETTINGS_DEFAULTS.get(key, ""))
+            elif kind == "dir":
+                self._pending[key] = _get_setting(key, RECORDING_DIR) or RECORDING_DIR
         self._original = dict(self._pending)
 
         self._refresh()
@@ -1715,6 +2065,11 @@ class StreamAnywhereSettingsScreen(Screen):
                 self["s_value_%d" % i].setText(_b(_LANG_LABELS.get(lv, lv)))
             elif kind == "text":
                 val = self._pending.get(key, _SETTINGS_DEFAULTS.get(key, ""))
+                if isinstance(val, bytes):
+                    val = val.decode("utf-8", "replace")
+                self["s_value_%d" % i].setText(_b(val))
+            elif kind == "dir":
+                val = self._pending.get(key, RECORDING_DIR)
                 if isinstance(val, bytes):
                     val = val.decode("utf-8", "replace")
                 self["s_value_%d" % i].setText(_b(val))
@@ -1779,6 +2134,19 @@ class StreamAnywhereSettingsScreen(Screen):
             self.session.openWithCallback(on_text, VirtualKeyBoard,
                                           title=_b(label),
                                           text=_b(cur))
+        elif kind == "dir":
+            cur = self._pending.get(key, RECORDING_DIR)
+            if isinstance(cur, bytes):
+                cur = cur.decode("utf-8", "replace")
+            def on_dir_chosen(new_dir, key=key):
+                if new_dir is not None:
+                    if isinstance(new_dir, bytes):
+                        new_dir = new_dir.decode("utf-8", "replace")
+                    v = _fs_path(new_dir).rstrip("/\\")
+                    self._pending[key] = v if v else RECORDING_DIR
+                    self._refresh()
+            self.session.openWithCallback(on_dir_chosen, StreamAnythingDirBrowser,
+                                          start_dir=_fs_path(cur))
 
     def _on_green(self):
         for key, label, kind in _get_settings():
@@ -1794,6 +2162,8 @@ class StreamAnywhereSettingsScreen(Screen):
                 _set_setting(key, self._pending.get(key, "auto"))
             elif kind == "text":
                 _set_setting(key, self._pending.get(key, _SETTINGS_DEFAULTS.get(key, "")))
+            elif kind == "dir":
+                _set_setting(key, self._pending.get(key, RECORDING_DIR))
         if self._pending.get("debug_log", False):
             try:
                 open(_SA_DEBUG_FLAG, "w").close()
