@@ -472,14 +472,17 @@ class _Handler(BaseHTTPRequestHandler):
                 _streams.set_webif_port(int(data["webif_port"]))
             try:
                 from . import plugin as _plugin
+                updates = {}
                 if "bouquet_default_name" in data:
-                    _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
+                    updates["bouquet_default_name"] = data["bouquet_default_name"]
                 if "bouquet_by_folder" in data:
-                    _plugin._set_setting("bouquet_by_folder", bool(data["bouquet_by_folder"]))
+                    updates["bouquet_by_folder"] = bool(data["bouquet_by_folder"])
                 if "recording_dir" in data:
                     new_dir = (data.get("recording_dir") or "").strip()
                     if new_dir:
-                        _plugin._set_setting("recording_dir", new_dir)
+                        updates["recording_dir"] = new_dir
+                if updates:
+                    _plugin._set_settings(updates)
             except Exception:
                 pass
             self._send_json({"ok": True})

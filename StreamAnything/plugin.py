@@ -131,10 +131,12 @@ def _get_setting(key, default=False):
     return _streams.get_config().get("settings", {}).get(key, fallback)
 
 
+def _set_settings(updates):
+    _streams.update_settings(updates)
+
+
 def _set_setting(key, value):
-    cfg = _streams.get_config()
-    cfg.setdefault("settings", {})[key] = value
-    _streams.save_config(cfg)
+    _streams.update_settings({key: value})
 
 
 def _get_settings():
@@ -2159,9 +2161,10 @@ class StreamAnywhereSettingsScreen(Screen):
                                           start_dir=_fs_path(start))
 
     def _on_green(self):
+        new_settings = {}
         for key, label, kind in _get_settings():
             if kind == "toggle":
-                _set_setting(key, self._pending[key])
+                new_settings[key] = self._pending[key]
             elif kind == "port":
                 new_port = self._pending.get(key, 8090)
                 if new_port != _streams.get_webif_port():
@@ -2169,11 +2172,13 @@ class StreamAnywhereSettingsScreen(Screen):
                     _webif.stop()
                     _webif.start(new_port)
             elif kind == "lang":
-                _set_setting(key, self._pending.get(key, "auto"))
+                new_settings[key] = self._pending.get(key, "auto")
             elif kind == "text":
-                _set_setting(key, self._pending.get(key, _SETTINGS_DEFAULTS.get(key, "")))
+                new_settings[key] = self._pending.get(key, _SETTINGS_DEFAULTS.get(key, ""))
             elif kind == "dir":
-                _set_setting(key, self._pending.get(key, RECORDING_DIR))
+                new_settings[key] = self._pending.get(key, RECORDING_DIR)
+        if new_settings:
+            _set_settings(new_settings)
         if self._pending.get("debug_log", False):
             try:
                 open(_SA_DEBUG_FLAG, "w").close()

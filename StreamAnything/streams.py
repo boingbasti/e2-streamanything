@@ -77,6 +77,15 @@ def save_config(cfg):
         return _save_raw(cfg)
 
 
+def update_settings(updates):
+    if not updates:
+        return
+    with _config_lock:
+        cfg = _load_raw()
+        cfg.setdefault("settings", {}).update(updates)
+        _save_raw(cfg)
+
+
 def get_webif_port():
     return int(get_config().get("webif_port", 8090))
 
