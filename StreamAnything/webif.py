@@ -668,6 +668,29 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(e)}, 500)
             return
 
+        if path == "/api/streams/bulk_logo":
+            data       = self._parse_json_body()
+            stream_ids = set(item.get("id", "") for item in data.get("stream_ids", []))
+            logo       = data.get("logo", "")
+            if not logo or not stream_ids:
+                self._send_json({"ok": False, "error": _("Fehlende Parameter")}, 400)
+                return
+            cfg     = _streams.get_config()
+            updated = 0
+            for it in cfg.get("items", []):
+                if it.get("type") == "folder":
+                    for s in it.get("streams", []):
+                        if s.get("id") in stream_ids:
+                            s["logo"] = logo
+                            updated += 1
+                elif it.get("id") in stream_ids:
+                    it["logo"] = logo
+                    updated += 1
+            if updated:
+                _streams.save_config(cfg)
+            self._send_json({"ok": True, "updated": updated})
+            return
+
         # ---- Groups: Gruppe hinzufügen ----
         if path == "/api/groups":
             data     = self._parse_json_body()
@@ -1397,6 +1420,57 @@ function bulkBouquet(){
   });
 }
 
+function bulkLogo(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  if(!items.length) return;
+  var modal = document.getElementById('_bulk_logo_modal');
+  if(modal){ modal.style.display='flex'; return; }
+  modal = document.createElement('div');
+  modal.id = '_bulk_logo_modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = '<div style="background:var(--bg2,#1e1e1e);border:1px solid var(--border,#444);border-radius:10px;padding:24px;min-width:320px;max-width:460px;width:90%">'
+    +'<h3 style="margin:0 0 16px">Logo für '+items.length+' Stream'+(items.length===1?'':'s')+' zuweisen</h3>'
+    +'<div style="margin-bottom:12px"><label style="display:block;margin-bottom:4px;font-size:13px;color:var(--text2,#aaa)">Datei hochladen</label>'
+    +'<input type="file" id="_blf" accept="image/png,image/jpeg" style="width:100%;box-sizing:border-box"></div>'
+    +'<div style="margin-bottom:16px"><label style="display:block;margin-bottom:4px;font-size:13px;color:var(--text2,#aaa)">oder Logo-URL</label>'
+    +'<input type="text" id="_blu" placeholder="https://…" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)"></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +'<button class="btn btn-sm" style="background:#555" onclick="document.getElementById(\'_bulk_logo_modal\').style.display=\'none\'">Abbrechen</button>'
+    +'<button class="btn btn-edit btn-sm" onclick="_bulkLogoSubmit()">Zuweisen</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+function _bulkLogoSubmit(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  var file = document.getElementById('_blf').files[0];
+  var url  = (document.getElementById('_blu').value||'').trim();
+  function _apply(logo){
+    xhr('POST','/api/streams/bulk_logo',{stream_ids:items,logo:logo},function(r){
+      document.getElementById('_bulk_logo_modal').style.display='none';
+      _selMode=false; _sel={};
+      load();
+      if(r&&r.ok) showToast('Logo für '+r.updated+' '+(r.updated===1?'Stream':'Streams')+' gesetzt.');
+      else showToast((r&&r.error)||'Fehler beim Zuweisen.');
+    });
+  }
+  if(file){
+    var fd=new FormData(); fd.append('file',file);
+    var x=new XMLHttpRequest(); x.open('POST','/api/logo');
+    x.onload=function(){ var r=JSON.parse(x.responseText); if(r.ok) _apply(r.logo); else showToast(r.error||'Upload fehlgeschlagen.'); };
+    x.onerror=function(){ showToast('Upload fehlgeschlagen.'); };
+    x.send(fd);
+  } else if(url){
+    xhr('POST','/api/logo',{logo_url:url},function(r){
+      if(r&&r.ok) _apply(r.logo); else showToast((r&&r.error)||'URL konnte nicht geladen werden.');
+    });
+  } else {
+    showToast('Bitte Datei oder URL angeben.');
+  }
+}
+
 function renderItemList(){
   var h = '<style>'
     +'.sel-active{background:rgba(52,152,219,.18)!important;box-shadow:inset 3px 0 0 #3498db}'
@@ -1435,6 +1509,7 @@ function renderItemList(){
       h += '<select id="_sel_target" style="padding:4px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)">'+opts+'</select>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkMove()">Verschieben</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkBouquet()">&#9654;&#9654; Als Bouquet</button>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkLogo()">&#128444; Logo zuweisen</button>';
       h += '<button class="btn btn-sm" style="background:#555;margin-left:auto" onclick="exitSelMode()">&#10005; Abbrechen</button>';
     }
     h += '</div>';

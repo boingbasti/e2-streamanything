@@ -95,11 +95,16 @@ class SAStreamPlayer(MoviePlayer):
             stream_index = self._stream_index
         logo_path = self._get_logo_path(stream_index)
         _dbg("_inject_logo idx=%d logo=%s" % (stream_index, logo_path or "none"))
-        logo_path_b = (logo_path.encode("utf-8") if isinstance(logo_path, type(u"")) else logo_path) if logo_path else None
-        self._active_logo_b = logo_path_b
-        if not logo_path_b:
+        self._active_logo = logo_path
+        if not logo_path:
             return
         try:
+            logo_path_b = logo_path.encode("utf-8") if isinstance(logo_path, type(u"")) else logo_path
+            from Tools.LoadPixmap import LoadPixmap
+            pixmap = LoadPixmap(logo_path_b)
+            if not pixmap:
+                _dbg("_inject_logo: LoadPixmap returned None")
+                return
             injected = False
             for entry in getattr(self, "renderer", []):
                 r = entry[-1] if isinstance(entry, (list, tuple)) and entry else entry
@@ -110,18 +115,22 @@ class SAStreamPlayer(MoviePlayer):
                             player = self
                             def _patched(what, _orig=orig, _r=r, _pl=player):
                                 _orig(what)
-                                p = getattr(_pl, "_active_logo_b", None)
+                                p = getattr(_pl, "_active_logo", None)
                                 if p:
                                     try:
-                                        _r.instance.setScale(2)
-                                        _r.instance.setPixmapFromFile(p)
-                                        _r.instance.show()
+                                        from Tools.LoadPixmap import LoadPixmap as _LP
+                                        pb = p.encode("utf-8") if isinstance(p, type(u"")) else p
+                                        px = _LP(pb)
+                                        if px:
+                                            _r.instance.setScale(2)
+                                            _r.instance.setPixmap(px)
+                                            _r.instance.show()
                                     except Exception as pe:
-                                        _dbg("_patched setPixmapFromFile: %s" % pe)
+                                        _dbg("_patched setPixmap: %s" % pe)
                             r.changed = _patched
                             r._sa_patched = True
                         r.instance.setScale(2)
-                        r.instance.setPixmapFromFile(logo_path_b)
+                        r.instance.setPixmap(pixmap)
                         r.instance.show()
                         injected = True
                 except Exception as e:
