@@ -476,6 +476,7 @@ def _start_native_recording(url, name, user_agent, duration_seconds, timer_id):
             ref = eServiceReference(5002, 0, ref_url)
             ref.setName(ref_name)
             entry = RecordTimerEntry(ServiceReference(ref), begin, end, timer_name_bytes, _b(""), None)
+            entry.dirname = RECORDING_DIR + "/"
             NavigationInstance.instance.RecordTimer.record(entry)
             _dbg("Native Aufnahme gestartet: %s" % _u(name))
             if _session:
