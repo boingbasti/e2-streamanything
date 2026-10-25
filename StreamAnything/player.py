@@ -24,6 +24,7 @@ except ImportError:
     from Screens.InfoBar import MoviePlayer
 
 _OFFLINE_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "offline_stream.mp4")
+_PLUGIN_DIR    = os.path.dirname(os.path.abspath(__file__))
 
 
 def _offline_ref(name=""):
@@ -54,6 +55,8 @@ class SAStreamPlayer(MoviePlayer):
         self._target_stream_index  = stream_index
         self._switch_token         = 0
         self.onClose.append(self.__mark_closed)
+        self.onLayoutFinish.append(self.__on_layout_finish)
+        self.onShow.append(self._inject_logo)
         if len(self._streams) > 1:
             from Components.ActionMap import ActionMap
             self["_sa_nav"] = ActionMap(
@@ -68,6 +71,66 @@ class SAStreamPlayer(MoviePlayer):
     def __mark_closed(self):
         self._closed = True
         _restore_serviceapp_settings()
+
+    def __on_layout_finish(self):
+        try:
+            from twisted.internet import reactor
+            reactor.callLater(0.6, self._inject_logo)
+        except Exception:
+            pass
+
+    def _get_logo_path(self, stream_index):
+        if not self._streams or stream_index < 0 or stream_index >= len(self._streams):
+            return None
+        logo = self._streams[stream_index].get("logo", "")
+        if not logo:
+            return None
+        path = os.path.join(_PLUGIN_DIR, logo)
+        return path if os.path.isfile(path) else None
+
+    def _inject_logo(self, stream_index=None):
+        if getattr(self, "_closed", True):
+            return
+        if stream_index is None:
+            stream_index = self._stream_index
+        logo_path = self._get_logo_path(stream_index)
+        _dbg("_inject_logo idx=%d logo=%s" % (stream_index, logo_path or "none"))
+        logo_path_b = (logo_path.encode("utf-8") if isinstance(logo_path, type(u"")) else logo_path) if logo_path else None
+        self._active_logo_b = logo_path_b
+        if not logo_path_b:
+            return
+        try:
+            injected = False
+            for entry in getattr(self, "renderer", []):
+                r = entry[-1] if isinstance(entry, (list, tuple)) and entry else entry
+                try:
+                    if type(r).__name__ == "Picon" and getattr(r, "instance", None):
+                        if not getattr(r, "_sa_patched", False):
+                            orig = r.changed
+                            player = self
+                            def _patched(what, _orig=orig, _r=r, _pl=player):
+                                _orig(what)
+                                p = getattr(_pl, "_active_logo_b", None)
+                                if p:
+                                    try:
+                                        _r.instance.setScale(2)
+                                        _r.instance.setPixmapFromFile(p)
+                                        _r.instance.show()
+                                    except Exception as pe:
+                                        _dbg("_patched setPixmapFromFile: %s" % pe)
+                            r.changed = _patched
+                            r._sa_patched = True
+                        r.instance.setScale(2)
+                        r.instance.setPixmapFromFile(logo_path_b)
+                        r.instance.show()
+                        injected = True
+                except Exception as e:
+                    _dbg("_inject_logo renderer error: %s" % e)
+            _dbg("_inject_logo: %s (renderers=%d)" % (
+                "OK" if injected else "no Picon renderer found",
+                len(getattr(self, "renderer", []))))
+        except Exception as e:
+            _dbg("_inject_logo error: %s" % e)
 
     def _switch_stream(self, direction):
         _dbg("_switch_stream called direction=%d" % direction)
@@ -171,6 +234,10 @@ class SAStreamPlayer(MoviePlayer):
             self._stream_index    = new_idx
             self._showing_offline = False
             self.session.nav.playService(ref)
+            try:
+                reactor.callLater(0.4, self._inject_logo)
+            except Exception:
+                pass
 
         try:
             from twisted.internet import reactor
