@@ -99,9 +99,9 @@ class SAStreamPlayer(MoviePlayer):
         if not logo_path:
             return
         try:
-            logo_path_b = logo_path.encode("utf-8") if isinstance(logo_path, type(u"")) else logo_path
             from Tools.LoadPixmap import LoadPixmap
-            pixmap = LoadPixmap(logo_path_b)
+            _lp_path = logo_path if _PY3 else (logo_path.encode("utf-8") if isinstance(logo_path, type(u"")) else logo_path)
+            pixmap = LoadPixmap(_lp_path)
             if not pixmap:
                 _dbg("_inject_logo: LoadPixmap returned None")
                 return
@@ -119,8 +119,8 @@ class SAStreamPlayer(MoviePlayer):
                                 if p:
                                     try:
                                         from Tools.LoadPixmap import LoadPixmap as _LP
-                                        pb = p.encode("utf-8") if isinstance(p, type(u"")) else p
-                                        px = _LP(pb)
+                                        pp = p if _PY3 else (p.encode("utf-8") if isinstance(p, type(u"")) else p)
+                                        px = _LP(pp)
                                         if px:
                                             _r.instance.setScale(2)
                                             _r.instance.setPixmap(px)
