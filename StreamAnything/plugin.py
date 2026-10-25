@@ -1933,17 +1933,20 @@ class StreamAnythingDirBrowser(_SADirBrowserMixin, Screen):
         entries.append((_("»  Hier speichern"), path))
         try:
             names = sorted(os.listdir(path))
-            for name in names:
+        except Exception as e:
+            _dbg("DirBrowser _fill listdir: %s" % e)
+            names = []
+        for name in names:
+            try:
                 if isinstance(name, bytes):
                     name_str = name.decode("utf-8", "replace")
-                    full = os.path.join(path, name)
                 else:
                     name_str = name
-                    full = os.path.join(path, name)
+                full = os.path.join(path, name)
                 if os.path.isdir(full):
                     entries.append(("[" + name_str + "]", full))
-        except Exception as e:
-            _dbg("DirBrowser _fill: %s" % e)
+            except Exception as e:
+                _dbg("DirBrowser _fill entry: %s" % e)
         self._entries = entries
         self._set_list([e[0] for e in entries])
         path_display = path if isinstance(path, type(u"")) else path.decode("utf-8", "replace") if isinstance(path, bytes) else str(path)
@@ -2138,6 +2141,11 @@ class StreamAnywhereSettingsScreen(Screen):
             cur = self._pending.get(key, RECORDING_DIR)
             if isinstance(cur, bytes):
                 cur = cur.decode("utf-8", "replace")
+            start = cur
+            while start and start not in ("/", "") and not os.path.isdir(_fs_path(start)):
+                start = os.path.dirname(start.rstrip("/")) or "/"
+            if not start or not os.path.isdir(_fs_path(start)):
+                start = "/media"
             def on_dir_chosen(new_dir, key=key):
                 if new_dir is not None:
                     if isinstance(new_dir, bytes):
@@ -2146,7 +2154,7 @@ class StreamAnywhereSettingsScreen(Screen):
                     self._pending[key] = v if v else RECORDING_DIR
                     self._refresh()
             self.session.openWithCallback(on_dir_chosen, StreamAnythingDirBrowser,
-                                          start_dir=_fs_path(cur))
+                                          start_dir=_fs_path(start))
 
     def _on_green(self):
         for key, label, kind in _get_settings():
