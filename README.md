@@ -8,7 +8,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **Streams und Ordner** – Streams können frei in Ordnern organisiert werden, im Plugin als Stream oder Ordner gekennzeichnet
 - **Kachelansicht** – übersichtliche 4×3-Kachelnavigation mit Logo, Name und Typ-Icon
 - **Listenansicht** – kompakte Listenansicht mit Logo, Name und Typ-Icon; umschaltbar per gelber Taste; Scrollbalken zeigt die aktuelle Position
-- **Logos** – eigene Logos für Streams und Ordner hochladbar (PNG oder JPG, max. 2 MB); Logo-URL wird gespeichert und beim Bearbeiten vorausgefüllt
+- **Logos** – eigene Logos für Streams und Ordner hochladbar (PNG oder JPG, max. 2 MB); Logo-URL wird gespeichert und beim Bearbeiten vorausgefüllt; das Logo erscheint auch in der Player-Infobar, sofern der MoviePlayer-Skin ein Picon-Widget hat
 - **Sortieren** – Einträge per Fernbedienung umsortieren (rote Taste im Plugin)
 - **Stream-Einstellungen** – Player, User-Agent und HLS-Option pro Stream direkt im Plugin änderbar (Menü-Taste)
 - **Streamwechsel während Wiedergabe** – mit CH+/- zum nächsten oder vorherigen Stream in der Liste wechseln
@@ -29,14 +29,14 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 - **User-Agent** – pro Stream einstellbarer HTTP-User-Agent (z. B. für streams mit Zugriffsbeschränkung)
 - **Lokaler Playlist Server** – optionaler HLS-Fix pro Stream: lädt das Master-Manifest, wählt die beste Qualitätsstufe und übergibt dem Player eine lokale Playlist; löst Audioprobleme bei bestimmten öffentlich-rechtlichen HLS-Streams. Bei [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) wird diese Option automatisch ausgeblendet, da die serviceapp die Audio-Spur direkt übernimmt
 - **Quell-Website** – optionaler Referer-Proxy pro Stream für HLS-Streams mit CDN-Hotlink-Schutz: leitet alle Anfragen über einen lokalen Proxy mit gesetztem Referer-Header weiter (Auto oder manuelle Angabe)
-- **Live-Aufnahme** – Streams im Hintergrund aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten. Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) werden alle Streamtypen als echter Enigma2-Timer aufgezeichnet; ohne diese serviceapp nur HLS-Streams (.m3u8)
+- **Live-Aufnahme** – Streams im Hintergrund aufzeichnen; sofort starten oder per Timer planen; Aufnahmen über das WebIF verwalten. Mit [boingbasti/e2-serviceapp-vti](https://github.com/boingbasti/e2-serviceapp-vti) werden alle Streamtypen als echter Enigma2-Timer aufgezeichnet; ohne diese serviceapp nur HLS-Streams (.m3u8). Der Aufnahme-Ordner ist im Plugin (eigener Ordner-Browser) und im WebIF frei wählbar
 - **ServiceApp-Auto-Konfiguration** – optimale Einstellungen für Live-Streams werden automatisch gesetzt
 - **Bouquet-Export** – Streams und Ordner direkt als Enigma2-Bouquet in die Senderliste exportieren; Logos werden automatisch als Picons übernommen
 - **M3U-Export** – einzelne Ordner als M3U-Playlist exportieren (Button im WebIF am Ordner)
 - **Backup/Restore** – Stream-Konfiguration exportieren und importieren:
   - **Alles ersetzen** – vorhandene Einträge werden vollständig durch das Backup ersetzt
   - **Einträge hinzufügen** – Backup wird zu den vorhandenen Einträgen hinzugefügt, Duplikate (gleiche ID) werden übersprungen
-- **Mehrfachauswahl im WebIF** – mehrere Streams gleichzeitig auswählen und in einen anderen Ordner verschieben (oben rechts im WebIF)
+- **Mehrfachauswahl im WebIF** – mehrere Streams gleichzeitig auswählen, in einen anderen Ordner verschieben, ein gemeinsames Logo zuweisen oder als Bouquet exportieren (oben rechts im WebIF)
 - **WebIF** – vollständige Verwaltung über den Browser, erreichbar unter `http://<Box-IP>:8090`
 - **Mehrsprachig** – Oberfläche (Plugin und WebIF) auf Deutsch, Englisch oder Polnisch; automatisch nach Box-Systemsprache oder manuell in den Einstellungen wählbar
 
@@ -57,7 +57,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_2.0.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_2.1.0_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -136,6 +136,7 @@ Die **Menü-Taste** auf einem Ordner bietet die Option, den Ordner als Enigma2-B
 | WebIF Port | 8090 | Port des WebIF (wählbar: 8080, 8088, 8090, 8181, 8888, 9000) |
 | Debug-Log | Aus | Schreibt Resolver-Aktivität nach `/tmp/streamanything.log` (YouTube, Feratel, Skylinewebcams, EarthTV, EarthCam, MagentaMusik) |
 | Sprache | Auto | Oberflächensprache von Plugin und WebIF: Auto (Box-Systemsprache), Deutsch, Englisch oder Polnisch |
+| Aufnahme-Ordner | `/media/hdd/movie/StreamAnything` | Zielordner für Aufnahmen. **OK** öffnet einen Ordner-Browser: **OK** öffnet einen Ordner bzw. wählt „Hier speichern“, **Gelb** legt einen neuen Unterordner an. Umlaute und Leerzeichen im Pfad werden unterstützt. Auch im WebIF unter Einstellungen änderbar |
 
 #### Streamwechsel während der Wiedergabe
 
@@ -153,9 +154,9 @@ Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
 
 Über der Eintrags-Liste stehen die Buttons **Alle einklappen** und **Alle ausklappen**, die alle Ordner gleichzeitig ein- oder ausklappen — sichtbar sobald mindestens ein Ordner vorhanden ist.
 
-Über den Button **Auswählen** (oben rechts) lässt sich ein Mehrfachauswahl-Modus aktivieren. Markierte Streams können damit in einen anderen Ordner verschoben werden. Drag & Drop bleibt im normalen Modus weiterhin verfügbar.
+Über den Button **Auswählen** (oben rechts) lässt sich ein Mehrfachauswahl-Modus aktivieren. Markierte Streams können damit in einen anderen Ordner verschoben, mit einem gemeinsamen Logo versehen (**Logo zuweisen**) oder als Bouquet exportiert werden. Drag & Drop bleibt im normalen Modus weiterhin verfügbar.
 
-An Ordnern und einzelnen Streams stehen Buttons zum Bouquet-Export zur Verfügung. Im unteren Bereich des WebIF lassen sich der Standard-Bouquet-Name und das Benennungsschema für Ordner-Bouquets einstellen.
+An Ordnern und einzelnen Streams stehen Buttons zum Bouquet-Export zur Verfügung. Im unteren Bereich des WebIF lassen sich der Standard-Bouquet-Name, das Benennungsschema für Ordner-Bouquets und der Aufnahme-Ordner einstellen.
 
 ## YouTube-Livestreams
 
