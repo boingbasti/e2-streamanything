@@ -390,6 +390,9 @@ class _Handler(BaseHTTPRequestHandler):
                     "bouquet_by_folder":    _plugin._get_setting(
                         "bouquet_by_folder",
                         _plugin._SETTINGS_DEFAULTS["bouquet_by_folder"]),
+                    "recording_dir":        _plugin._get_setting(
+                        "recording_dir",
+                        _plugin._SETTINGS_DEFAULTS["recording_dir"]),
                 })
             except Exception:
                 cfg = _streams.get_config()
@@ -469,10 +472,17 @@ class _Handler(BaseHTTPRequestHandler):
                 _streams.set_webif_port(int(data["webif_port"]))
             try:
                 from . import plugin as _plugin
+                updates = {}
                 if "bouquet_default_name" in data:
-                    _plugin._set_setting("bouquet_default_name", data["bouquet_default_name"])
+                    updates["bouquet_default_name"] = data["bouquet_default_name"]
                 if "bouquet_by_folder" in data:
-                    _plugin._set_setting("bouquet_by_folder", bool(data["bouquet_by_folder"]))
+                    updates["bouquet_by_folder"] = bool(data["bouquet_by_folder"])
+                if "recording_dir" in data:
+                    new_dir = (data.get("recording_dir") or "").strip()
+                    if new_dir:
+                        updates["recording_dir"] = new_dir
+                if updates:
+                    _plugin._set_settings(updates)
             except Exception:
                 pass
             self._send_json({"ok": True})
@@ -636,6 +646,59 @@ class _Handler(BaseHTTPRequestHandler):
                 if sid and _streams.move_stream(sid, src, target, None):
                     moved += 1
             self._send_json({"ok": True, "moved": moved})
+            return
+
+        if path == "/api/streams/bulk_bouquet":
+            try:
+                from . import bouquet as _bouquet
+                from . import plugin  as _plugin
+                data       = self._parse_json_body()
+                stream_ids = set(item.get("id", "") for item in data.get("stream_ids", []))
+                cfg        = _streams.get_config()
+                selected   = []
+                for it in cfg.get("items", []):
+                    if it.get("type") == "folder":
+                        for s in it.get("streams", []):
+                            if s.get("id") in stream_ids:
+                                selected.append(s)
+                    elif it.get("id") in stream_ids:
+                        selected.append(it)
+                exportable = [s for s in selected if not _plugin._needs_resolver(s.get("url", ""))]
+                skipped    = len(selected) - len(exportable)
+                if not exportable:
+                    self._send_json({"ok": False, "error": _("Keine exportierbaren Streams ausgewählt"), "skipped": skipped})
+                    return
+                default_name = _plugin._get_setting(
+                    "bouquet_default_name",
+                    _plugin._SETTINGS_DEFAULTS["bouquet_default_name"],
+                )
+                ok, err = _bouquet.export_bouquet_items(exportable, default_name)
+                self._send_json({"ok": ok, "error": err or "", "skipped": skipped})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        if path == "/api/streams/bulk_logo":
+            data       = self._parse_json_body()
+            stream_ids = set(item.get("id", "") for item in data.get("stream_ids", []))
+            logo       = data.get("logo", "")
+            if not logo or not stream_ids:
+                self._send_json({"ok": False, "error": _("Fehlende Parameter")}, 400)
+                return
+            cfg     = _streams.get_config()
+            updated = 0
+            for it in cfg.get("items", []):
+                if it.get("type") == "folder":
+                    for s in it.get("streams", []):
+                        if s.get("id") in stream_ids:
+                            s["logo"] = logo
+                            updated += 1
+                elif it.get("id") in stream_ids:
+                    it["logo"] = logo
+                    updated += 1
+            if updated:
+                _streams.save_config(cfg)
+            self._send_json({"ok": True, "updated": updated})
             return
 
         # ---- Groups: Gruppe hinzufügen ----
@@ -1230,17 +1293,23 @@ function renderSettingsSection(){
   h += '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
   h += '<input type="checkbox" id="cfg_by_folder"'+(state.config.bouquet_by_folder?' checked':'')+' style="width:16px;height:16px">';
   h += 'Bouquets nach Ordnern benennen</label></div>';
-  h += '<div><button class="btn btn-primary btn-sm" onclick="saveBouquetSettings()">Speichern</button></div>';
+  h += '<div class="form-row"><label style="white-space:nowrap;align-self:center;min-width:160px">Aufnahme-Ordner</label>';
+  h += '<input id="cfg_recording_dir" value="'+esc(state.config.recording_dir||'/media/hdd/movie/StreamAnything')+'" placeholder="/media/hdd/movie/StreamAnything" style="flex:1"></div>';
+  h += '<div><button class="btn btn-primary btn-sm" onclick="saveSettings()">Speichern</button></div>';
   h += '</div></div>';
   return h;
 }
 
-function saveBouquetSettings(){
+function saveSettings(){
   var name = (document.getElementById('cfg_bouquet_name').value||'').trim() || 'StreamAnything';
   var byFolder = !!document.getElementById('cfg_by_folder').checked;
+  var recDir = (document.getElementById('cfg_recording_dir').value||'').trim();
   state.config.bouquet_default_name = name;
   state.config.bouquet_by_folder    = byFolder;
-  xhr('POST','/api/config',{bouquet_default_name: name, bouquet_by_folder: byFolder},function(r){
+  if(recDir) state.config.recording_dir = recDir;
+  var payload = {bouquet_default_name: name, bouquet_by_folder: byFolder};
+  if(recDir) payload.recording_dir = recDir;
+  xhr('POST','/api/config',payload,function(r){
     if(r&&r.ok) showToast('Einstellungen gespeichert.');
     else alert('Fehler beim Speichern.');
   });
@@ -1350,6 +1419,74 @@ function bulkMove(){
   });
 }
 
+function bulkBouquet(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  if(!items.length) return;
+  xhr('POST','/api/streams/bulk_bouquet',{stream_ids:items},function(r){
+    _selMode=false; _sel={};
+    load();
+    if(r&&r.ok){
+      var msg = 'Bouquet exportiert.';
+      if(r.skipped) msg += ' '+r.skipped+' '+(r.skipped===1?'Stream':'Streams')+' übersprungen.';
+      showToast(msg);
+    } else {
+      showToast((r&&r.error)||'Fehler beim Export.');
+    }
+  });
+}
+
+function bulkLogo(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  if(!items.length) return;
+  var modal = document.getElementById('_bulk_logo_modal');
+  if(modal){ modal.style.display='flex'; return; }
+  modal = document.createElement('div');
+  modal.id = '_bulk_logo_modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = '<div style="background:var(--bg2,#1e1e1e);border:1px solid var(--border,#444);border-radius:10px;padding:24px;min-width:320px;max-width:460px;width:90%">'
+    +'<h3 style="margin:0 0 16px">Logo für '+items.length+' Stream'+(items.length===1?'':'s')+' zuweisen</h3>'
+    +'<div style="margin-bottom:12px"><label style="display:block;margin-bottom:4px;font-size:13px;color:var(--text2,#aaa)">Datei hochladen</label>'
+    +'<input type="file" id="_blf" accept="image/png,image/jpeg" style="width:100%;box-sizing:border-box"></div>'
+    +'<div style="margin-bottom:16px"><label style="display:block;margin-bottom:4px;font-size:13px;color:var(--text2,#aaa)">oder Logo-URL</label>'
+    +'<input type="text" id="_blu" placeholder="https://…" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)"></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +'<button class="btn btn-sm" style="background:#555" onclick="document.getElementById(\'_bulk_logo_modal\').style.display=\'none\'">Abbrechen</button>'
+    +'<button class="btn btn-edit btn-sm" onclick="_bulkLogoSubmit()">Zuweisen</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+function _bulkLogoSubmit(){
+  var items = [];
+  for(var k in _sel) items.push(_sel[k]);
+  var file = document.getElementById('_blf').files[0];
+  var url  = (document.getElementById('_blu').value||'').trim();
+  function _apply(logo){
+    xhr('POST','/api/streams/bulk_logo',{stream_ids:items,logo:logo},function(r){
+      document.getElementById('_bulk_logo_modal').style.display='none';
+      _selMode=false; _sel={};
+      load();
+      if(r&&r.ok) showToast('Logo für '+r.updated+' '+(r.updated===1?'Stream':'Streams')+' gesetzt.');
+      else showToast((r&&r.error)||'Fehler beim Zuweisen.');
+    });
+  }
+  if(file){
+    var fd=new FormData(); fd.append('file',file);
+    var x=new XMLHttpRequest(); x.open('POST','/api/logo');
+    x.onload=function(){ var r=JSON.parse(x.responseText); if(r.ok) _apply(r.logo); else showToast(r.error||'Upload fehlgeschlagen.'); };
+    x.onerror=function(){ showToast('Upload fehlgeschlagen.'); };
+    x.send(fd);
+  } else if(url){
+    xhr('POST','/api/logo',{logo_url:url},function(r){
+      if(r&&r.ok) _apply(r.logo); else showToast((r&&r.error)||'URL konnte nicht geladen werden.');
+    });
+  } else {
+    showToast('Bitte Datei oder URL angeben.');
+  }
+}
+
 function renderItemList(){
   var h = '<style>'
     +'.sel-active{background:rgba(52,152,219,.18)!important;box-shadow:inset 3px 0 0 #3498db}'
@@ -1387,6 +1524,8 @@ function renderItemList(){
       h += '<span style="color:var(--text2,#aaa)">&#8594; Verschieben nach:</span>';
       h += '<select id="_sel_target" style="padding:4px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)">'+opts+'</select>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkMove()">Verschieben</button>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkBouquet()">&#9654;&#9654; Als Bouquet</button>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkLogo()">&#128444; Logo zuweisen</button>';
       h += '<button class="btn btn-sm" style="background:#555;margin-left:auto" onclick="exitSelMode()">&#10005; Abbrechen</button>';
     }
     h += '</div>';

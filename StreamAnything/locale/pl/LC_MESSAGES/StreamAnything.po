@@ -784,3 +784,24 @@ msgstr "Invalid start time."
 
 msgid "Fehler beim Export."
 msgstr "Export failed."
+
+msgid "Aufnahme-Ordner"
+msgstr "Recording folder"
+
+msgid "Ordner auswählen"
+msgstr "Select folder"
+
+msgid "OK = Öffnen/Wählen  |  Gelb = Neuer Ordner  |  EXIT = Abbrechen"
+msgstr "OK = Open/Select  |  Yellow = New folder  |  EXIT = Cancel"
+
+msgid "[ Übergeordneter Ordner ]"
+msgstr "[ Parent folder ]"
+
+msgid "»  Hier speichern"
+msgstr "»  Save here"
+
+msgid "Neuer Ordnername:"
+msgstr "New folder name:"
+
+msgid "Fehlende Parameter"
+msgstr "Missing parameters"
