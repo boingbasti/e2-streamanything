@@ -142,6 +142,7 @@ def _set_setting(key, value):
 def _get_settings():
     return [
         ("wrap_lr",                  _("Links/Rechts zum Blättern"),       "toggle"),
+        ("wrap_ud",                  _("Hoch/Runter zum Blättern"),        "toggle"),
         ("prefer_best_quality",      _("Höchste Qualität bevorzugen"),     "toggle"),
         ("serviceapp_autoconfigure", _("ServiceApp auto-konfigurieren"),   "toggle"),
         ("webif_autostart",          _("WebIF im Hintergrund"),            "toggle"),
@@ -159,6 +160,7 @@ _LANG_CYCLE   = ["auto", "de", "en", "pl"]
 _LANG_LABELS  = {"auto": "Auto", "de": "Deutsch", "en": "English", "pl": "Polski"}
 _SETTINGS_DEFAULTS = {
     "wrap_lr":                  True,
+    "wrap_ud":                  False,
     "prefer_best_quality":      True,
     "serviceapp_autoconfigure": True,
     "webif_autostart":          True,
@@ -928,6 +930,31 @@ def _logo_base_rect(idx):
     return lx, ly, _LOGO_W, _LOGO_H
 
 
+def _tile_vertical_step(page, sel, down, total):
+    """Hoch/Runter im Kachelmodus. Am Seitenrand geht es auf die
+    naechste bzw. vorherige Seite in derselben Spalte, nach der letzten
+    Seite wieder zur ersten (wie in der Listenansicht)."""
+    pages = (total + TILES_PER_PAGE - 1) // TILES_PER_PAGE
+    col = sel % TILE_COLS
+    row = sel // TILE_COLS
+    page_count = min(TILES_PER_PAGE, total - page * TILES_PER_PAGE)
+    if down:
+        new_row = row + 1
+        if new_row < TILE_ROWS and new_row * TILE_COLS < page_count:
+            return page, min(new_row * TILE_COLS + col, page_count - 1)
+        page = (page + 1) % pages
+        page_count = min(TILES_PER_PAGE, total - page * TILES_PER_PAGE)
+        return page, min(col, page_count - 1)
+    if row > 0:
+        return page, (row - 1) * TILE_COLS + col
+    page = (page - 1) % pages
+    page_count = min(TILES_PER_PAGE, total - page * TILES_PER_PAGE)
+    if col >= page_count:
+        return page, page_count - 1
+    last_row = (page_count - 1 - col) // TILE_COLS
+    return page, last_row * TILE_COLS + col
+
+
 # ------------------------------------------------------------------
 # Skin-Templates
 # ------------------------------------------------------------------
@@ -944,7 +971,7 @@ def _tile_widget(idx, x, y, w, h):
         '<widget name="tile_logo_{i}" position="{lx},{ly}" size="{lw},{lh}" '
         'alphatest="blend" zPosition="1" transparent="1" scale="1"/>'
         '<widget name="tile_sel_{i}" position="{x},{y}" size="{w},{h}" '
-        'alphatest="blend" zPosition="3" transparent="1"/>'
+        'alphatest="blend" zPosition="3" transparent="1" scale="1"/>'
         '<widget name="tile_type_{i}" position="{bx},{by}" size="{bs},{bs}" '
         'alphatest="blend" zPosition="4" transparent="1" scale="1"/>'
         '<widget name="tile_label_{i}" position="{x},{labely}" size="{w},{labelh}" '
@@ -2841,6 +2868,16 @@ class StreamAnywhereScreen(Screen):
                         self._sel = min(row * TILE_COLS + TILE_COLS - 1, page_count - 1)
                         self._update_sel_marker()
                         self._update_legend()
+        elif _get_setting("wrap_ud"):
+            new_page, new_sel = _tile_vertical_step(
+                self._page, self._sel, delta > 0, total)
+            self._sel = new_sel
+            if new_page != self._page:
+                self._page = new_page
+                self._render()
+            else:
+                self._update_sel_marker()
+                self._update_legend()
         else:
             if delta > 0:  # unten
                 new_row = (row + 1) % TILE_ROWS
@@ -3577,6 +3614,16 @@ class StreamAnywhereGroupScreen(Screen):
                         self._sel = min(row * TILE_COLS + TILE_COLS - 1, page_count - 1)
                         self._update_sel_marker()
                         self._update_legend()
+        elif _get_setting("wrap_ud"):
+            new_page, new_sel = _tile_vertical_step(
+                self._page, self._sel, delta > 0, total)
+            self._sel = new_sel
+            if new_page != self._page:
+                self._page = new_page
+                self._render()
+            else:
+                self._update_sel_marker()
+                self._update_legend()
         else:
             if delta > 0:  # unten
                 new_row = (row + 1) % TILE_ROWS

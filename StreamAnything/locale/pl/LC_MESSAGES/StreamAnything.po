@@ -18,6 +18,9 @@ msgstr ""
 msgid "Links/Rechts zum Blättern"
 msgstr "Lewo/Prawo, aby przewijać"
 
+msgid "Hoch/Runter zum Blättern"
+msgstr "Góra/Dół, aby przewijać"
+
 #: plugin.py:102
 msgid "Höchste Qualität bevorzugen"
 msgstr "Preferuj najwyższą jakość"
