@@ -262,7 +262,7 @@ class SAStreamPlayer(MoviePlayer):
             playing, len(self._streams), getattr(self, "_showing_offline", False)))
         if getattr(self, "_showing_offline", False):
             _dbg("doEofInternal: Already showing offline stream, closing player to prevent loop/deadlock")
-            self.close()
+            self.close(self._stream_index)
             return
         if len(self._streams) > 1:
             self._showing_offline = True

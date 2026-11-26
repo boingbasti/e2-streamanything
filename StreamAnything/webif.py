@@ -989,6 +989,20 @@ main{max-width:900px;margin:0 auto;padding:24px 16px}
 .folder-streams{padding:8px 0 4px 16px}
 .btn-collapse{background:none;border:none;color:#888;cursor:pointer;font-size:.8rem;padding:2px 4px;flex-shrink:0;line-height:1}
 .btn-collapse:hover{color:#bbb}
+.folder-head{display:flex;align-items:center;gap:8px}
+.item-text{flex:1;min-width:0;overflow:hidden}
+.item-text .item-name{overflow-wrap:anywhere}
+.folder-head .item-name{min-width:0;overflow-wrap:anywhere}
+@media (max-width:600px){
+main{padding:16px 10px}
+.folder-head{flex-wrap:wrap;row-gap:6px}
+.folder-head .item-name{flex:1 1 120px}
+.folder-streams{padding-left:8px}
+.item{flex-wrap:wrap;row-gap:6px}
+.item-text{flex:1 1 110px}
+.item-actions{flex-basis:100%;justify-content:flex-end}
+.btn-sm{padding:4px 8px}
+}
 .empty{color:#555;font-size:.9rem;padding:8px 0}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
@@ -1340,7 +1354,7 @@ function renderAddForm(){
   var h = '<div class="section"><h2>Eintrag hinzufügen</h2>';
   h += '<input type="file" id="m3uFileHidden" accept=".m3u,.m3u8" style="display:none" onchange="handleM3UFile(this)">';
   h += '<div class="type-toggle">';
-  h += '<button class="btn-toggle'+(isStream?' active':'')+'" onclick="setAddType(\'stream\')">&#9654; Stream</button>';
+  h += '<button class="btn-toggle'+(isStream?' active':'')+'" onclick="setAddType(\'stream\')">&#9654;&#xFE0E; Stream</button>';
   h += '<button class="btn-toggle'+(!isStream?' active':'')+'" onclick="setAddType(\'folder\')">&#128193; Ordner</button>';
   h += '<button class="btn-toggle" onclick="document.getElementById(\'m3uFileHidden\').click()">&#128203; Playlist</button>';
   h += '</div>';
@@ -1504,11 +1518,11 @@ function renderItemList(){
     var hasFolders = state.items.some(function(it){ return it.type==='folder'; });
     if(!_selMode){
       if(hasFolders){
-        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
+        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654;&#xFE0E; Alle einklappen</button>';
         h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
       }
       h += '<div style="display:inline-flex;align-items:stretch;border:1px solid #444;border-radius:6px;overflow:hidden">'
-        + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#9654; Alle als Bouquets</button>'
+        + '<button class="btn btn-edit btn-sm" onclick="exportAllBouquets()" title="Alle als Bouquets exportieren" style="border-radius:0;border:none;border-right:1px solid #444">&#9654;&#xFE0E;&#9654;&#xFE0E; Alle als Bouquets</button>'
         + '<input id="_bouquet_name_all" value="'+esc(state.config.bouquet_default_name)+'" title="Bouquet-Name (einmalige Überschreibung)" style="border:none;background:#1a1a2e;color:#eee;font-size:.8rem;width:130px;padding:0 8px">'
         + '</div>';
       h += '<button class="btn btn-edit btn-sm" style="margin-left:auto" onclick="enterSelMode()">&#9745; Auswählen</button>';
@@ -1517,14 +1531,14 @@ function renderItemList(){
       var opts = '<option value="">Hauptliste</option>';
       for(var fi=0;fi<folders.length;fi++) opts += '<option value="'+folders[fi].id+'">'+esc(folders[fi].name)+'</option>';
       if(hasFolders){
-        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654; Alle einklappen</button>';
+        h += '<button class="btn-collapse" onclick="collapseAll()">&#9654;&#xFE0E; Alle einklappen</button>';
         h += '<button class="btn-collapse" onclick="expandAll()">&#9660; Alle ausklappen</button>';
       }
       h += '<span id="_sel_cnt" style="font-weight:600">0 Streams ausgewählt</span>';
       h += '<span style="color:var(--text2,#aaa)">&#8594; Verschieben nach:</span>';
       h += '<select id="_sel_target" style="padding:4px 8px;border-radius:6px;background:var(--bg3,#2a2a2a);color:inherit;border:1px solid var(--border,#444)">'+opts+'</select>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkMove()">Verschieben</button>';
-      h += '<button class="btn btn-edit btn-sm" onclick="bulkBouquet()">&#9654;&#9654; Als Bouquet</button>';
+      h += '<button class="btn btn-edit btn-sm" onclick="bulkBouquet()">&#9654;&#xFE0E;&#9654;&#xFE0E; Als Bouquet</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="bulkLogo()">&#128444; Logo zuweisen</button>';
       h += '<button class="btn btn-sm" style="background:#555;margin-left:auto" onclick="exitSelMode()">&#10005; Abbrechen</button>';
     }
@@ -1549,12 +1563,12 @@ function renderStreamItem(s, i){
   h += '<span class="drag-handle" ontouchstart="tStart(event,\''+s.id+'\',null)">&#9776;</span>';
   if(s.logo) h += '<img class="item-logo" src="/'+esc(s.logo)+'" onerror="this.style.display=\'none\'">';
   else h += '<div class="item-logo-placeholder"></div>';
-  h += '<div style="flex:1;overflow:hidden">';
+  h += '<div class="item-text">';
   h += '<div class="item-name">'+esc(s.name)+'<span class="badge badge-stream">Stream</span></div>';
   h += '<div class="item-url">'+esc(s.url||'')+'</div>';
   h += '</div>';
   h += '<div class="item-actions">';
-  if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#xFE0E;&#9654;&#xFE0E;</button>';
   h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditStream(\''+s.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteStream(\''+s.id+'\')">&#10005;</button>';
@@ -1601,15 +1615,15 @@ function renderFolderItem(g, gi){
   var collapsed = !!state.collapsedFolders[g.id];
   var da='draggable="true" ondragstart="dStart(event,\''+g.id+'\',null)" ondragover="dOver(event,\''+g.id+'\',null)" ondragleave="dLeave(event)" ondrop="dDrop(event,\''+g.id+'\',null)" ondragend="dEnd(event)"';
   var h = '<li class="item" style="flex-direction:column;align-items:stretch;cursor:default" data-id="'+g.id+'" '+da+'>';
-  h += '<div style="display:flex;align-items:center;gap:8px">';
+  h += '<div class="folder-head">';
   h += '<span class="drag-handle" ontouchstart="tStart(event,\''+g.id+'\',null)">&#9776;</span>';
-  h += '<button class="btn-collapse" onclick="event.stopPropagation();toggleFolder(\''+g.id+'\')">'+(collapsed?'&#9654;':'&#9660;')+'</button>';
+  h += '<button class="btn-collapse" onclick="event.stopPropagation();toggleFolder(\''+g.id+'\')">'+(collapsed?'&#9654;&#xFE0E;':'&#9660;')+'</button>';
   if(g.logo) h += '<img class="item-logo" src="/'+esc(g.logo)+'" onerror="this.style.display=\'none\'">';
   else h += '<div class="item-logo-placeholder"></div>';
   h += '<div class="item-name" style="font-weight:600">'+esc(g.name)+'<span class="badge badge-folder">Ordner</span></div>';
   h += '<div class="item-actions" style="margin-left:auto">';
   h += '<a class="btn btn-edit btn-sm" href="/api/groups/'+g.id+'/export" download title="M3U exportieren">&#8595;</a>';
-  h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+  h += '<button class="btn btn-edit btn-sm" onclick="exportBouquet(\''+g.id+'\')" title="Als Bouquet exportieren">&#9654;&#xFE0E;&#9654;&#xFE0E;</button>';
   h += '<button class="btn btn-edit btn-sm" onclick="openEditFolder(\''+g.id+'\')">&#9998;</button>';
   h += '<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+g.id+'\')">&#10005;</button>';
   h += '</div></div>';
@@ -1628,12 +1642,12 @@ function renderFolderItem(g, gi){
       h += '<span class="drag-handle" ontouchstart="tStart(event,\''+s.id+'\',\''+g.id+'\')">&#9776;</span>';
       if(s.logo) h += '<img class="item-logo" src="/'+esc(s.logo)+'" onerror="this.style.display=\'none\'">';
       else h += '<div class="item-logo-placeholder"></div>';
-      h += '<div style="flex:1;overflow:hidden">';
+      h += '<div class="item-text">';
       h += '<div class="item-name" style="font-size:.9rem">'+esc(s.name)+'</div>';
       h += '<div class="item-url">'+esc(s.url||'')+'</div>';
       h += '</div>';
       h += '<div class="item-actions">';
-      if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#9654;</button>';
+      if(s.bouquet_ok) h += '<button class="btn btn-edit btn-sm" onclick="exportStreamBouquet(\''+s.id+'\')" title="Als Bouquet exportieren">&#9654;&#xFE0E;&#9654;&#xFE0E;</button>';
       h += '<button class="btn btn-edit btn-sm" style="color:#e74c3c" onclick="openRecordModal(\''+s.id+'\')" title="Aufnahme">&#9679;</button>';
       h += '<button class="btn btn-edit btn-sm" onclick="openEditFolderStream(\''+g.id+'\',\''+s.id+'\')">&#9998;</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="deleteFolderStream(\''+g.id+'\',\''+s.id+'\')">&#10005;</button>';
@@ -2027,7 +2041,7 @@ function renderRecordingsSection(){
     h += '<ul class="item-list">';
     for(var i=0;i<state.activeRecordings.length;i++){
       var r = state.activeRecordings[i];
-      h += '<li class="item"><div style="flex:1;overflow:hidden">';
+      h += '<li class="item"><div class="item-text">';
       h += '<div class="item-name" style="font-size:.9rem">'+esc(r.title)+'</div>';
       h += '<div class="item-url">'+fmtElapsed(r.elapsed)+' / '+(r.duration?fmtTimerDuration(r.duration):'unbegrenzt')+' &middot; '+fmtBytes(r.downloaded)+'</div>';
       h += '</div><div class="item-actions">';
@@ -2044,7 +2058,7 @@ function renderRecordingsSection(){
     h += '<ul class="item-list">';
     for(var j=0;j<state.recordingTimers.length;j++){
       var t = state.recordingTimers[j];
-      h += '<li class="item"><div style="flex:1;overflow:hidden">';
+      h += '<li class="item"><div class="item-text">';
       h += '<div class="item-name" style="font-size:.9rem">'+esc(t.name)+'</div>';
       h += '<div class="item-url">'+fmtTimerDate(t.start_time)+' &middot; '+fmtTimerDuration(t.duration)+' &middot; '+(TIMER_STATUS_LABELS[t.status]||t.status)+'</div>';
       h += '</div><div class="item-actions">';

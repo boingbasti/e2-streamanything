@@ -10,6 +10,9 @@ msgstr ""
 msgid "Links/Rechts zum Blättern"
 msgstr "Left/Right to scroll"
 
+msgid "Hoch/Runter zum Blättern"
+msgstr "Up/Down to scroll"
+
 msgid "Höchste Qualität bevorzugen"
 msgstr "Prefer best quality"
 
