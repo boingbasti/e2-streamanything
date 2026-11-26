@@ -57,7 +57,7 @@ Vollständig per WebIF im Browser bedienbar – keine Fernbedienung nötig.
 IPK-Datei auf die Box kopieren und installieren:
 
 ```sh
-opkg install enigma2-plugin-extensions-streamanything_2.1.0_all.ipk
+opkg install enigma2-plugin-extensions-streamanything_2.1.1_all.ipk
 ```
 
 Anschließend Enigma2 neu starten.
@@ -86,7 +86,7 @@ Navigation mit den Pfeiltasten, Öffnen mit **OK**, Zurück mit **EXIT**.
 
 #### Kachelansicht
 
-Standardansicht mit 4×3 Kacheln. Seitenweise blättern mit **CH+/-**.
+Standardansicht mit 4×3 Kacheln. Seitenweise blättern mit **CH+/-**. **Hoch/Runter** bewegt die Auswahl innerhalb der Seite im Kreis; mit der Einstellung „Hoch/Runter zum Blättern“ wechselt die Auswahl am oberen oder unteren Rand auf die vorherige bzw. nächste Seite.
 
 #### Listenansicht
 
@@ -130,6 +130,7 @@ Die **Menü-Taste** auf einem Ordner bietet die Option, den Ordner als Enigma2-B
 | Einstellung | Standard | Beschreibung |
 |---|---|---|
 | Links/Rechts zum Blättern | Ein | In der Kachelansicht wechselt Links/Rechts am ersten oder letzten Eintrag einer Seite automatisch zur vorherigen oder nächsten Seite |
+| Hoch/Runter zum Blättern | Aus | In der Kachelansicht wechselt Hoch/Runter am oberen oder unteren Rand zur vorherigen oder nächsten Seite, nach der letzten Seite geht es wieder zum Anfang. Ausgeschaltet bleibt die Auswahl auf der aktuellen Seite |
 | Höchste Qualität bevorzugen | Ein | Aus dem HLS-Manifest wird die beste Qualitätsstufe extrahiert und direkt an den Player übergeben |
 | ServiceApp auto-konfigurieren | Ein | Setzt beim Abspielen automatisch optimale ServiceApp-Einstellungen für Live-Streams: Downmix, Autoselect Stream sowie je nach exteplayer3-Version HLS-Explorer und AAC-Software-Dekodierung |
 | WebIF im Hintergrund | Ein | WebIF beim Starten des Plugins automatisch im Hintergrund starten |
@@ -151,6 +152,8 @@ Im Browser öffnen: `http://<Box-IP>:8090`
 Beim Anlegen oder Bearbeiten eines Streams innerhalb eines Ordners steht der Button **Von Ordner** zur Verfügung, um das Logo des Ordners direkt zu übernehmen.
 
 Der Port ist im Plugin unter **Einstellungen** änderbar (Standard: 8090).
+
+Auf schmalen Bildschirmen (z. B. Handy im Hochformat) stehen die Buttons unter dem Namen des Eintrags, damit lange Namen vollständig lesbar bleiben.
 
 Über der Eintrags-Liste stehen die Buttons **Alle einklappen** und **Alle ausklappen**, die alle Ordner gleichzeitig ein- oder ausklappen — sichtbar sobald mindestens ein Ordner vorhanden ist.
 
